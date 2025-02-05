@@ -4,7 +4,7 @@ version = "1.6.1"
 
 [cubi.workflow]
 pid = "undefined"
-name = "undefined"
+name = "sequence-annotation"
 version = "prototype"
 
 [tool.black]
@@ -12,6 +12,11 @@ line-length = 88
 
 [tool.isort]
 profile = "black"
+
+[cubi.workflow.template]
+pid = "https://github.com/core-unit-bioinformatics/template-snakemake"
+system = "smk"
+version = "1.4.0"
 
 [tool.pylint.format]
 max-line-length = "88"
