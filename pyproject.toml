@@ -1,0 +1,20 @@
+[cubi.metadata]
+pid = "https://github.com/core-unit-bioinformatics/template-metadata-files"
+version = "1.6.1"
+
+[cubi.workflow]
+pid = "undefined"
+name = "undefined"
+version = "prototype"
+
+[tool.black]
+line-length = 88
+
+[tool.isort]
+profile = "black"
+
+[tool.pylint.format]
+max-line-length = "88"
+
+[tool.pylint.messages_control]
+disable = [ "logging-fstring-interpolation", "useless-return", "missing-module-docstring",]
