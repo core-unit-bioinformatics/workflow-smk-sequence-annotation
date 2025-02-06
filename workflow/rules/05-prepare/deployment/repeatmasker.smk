@@ -131,7 +131,7 @@ if REPEATMASKER_DFAM_ROOT_PART_FILE is not None:
     REPEATMASKER_SETUP_OK.append(rules.add_dfam_root_partition.output.rm_dfam_root_ok)
 
 
-localrules: produce_testseq_file
+localrules: dump_testseq_file
 rule dump_testseq_file:
     output:
         fasta = DIR_LOCAL_REF.joinpath("testseq.fasta")
