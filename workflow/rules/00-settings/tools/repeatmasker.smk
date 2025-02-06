@@ -1,5 +1,6 @@
 import pathlib
 
+RUN_REPEATMASKER = config.get("run_repeatmasker", False)
 
 REPEATMASKER_OFFLINE_SETUP = config.get("repeatmasker_offline_setup", False)
 

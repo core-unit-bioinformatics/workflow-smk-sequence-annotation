@@ -162,6 +162,10 @@ rule build_repeatmasker_database:
         rm_db_built_ok = DIR_PROC.joinpath(
             "05-prepare", "deployment", "repeatmasker_db_built.ok"
         )
+    log:
+        DIR_LOG.joinpath(
+            "05-prepare", "deployment", "repeatmasker_db_built.log"
+        )
     conda:
         DIR_ENVS.joinpath("biotools", "motif_tools.yaml")
     params:
