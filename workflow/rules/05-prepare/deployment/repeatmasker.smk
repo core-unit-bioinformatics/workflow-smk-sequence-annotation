@@ -45,8 +45,11 @@ if REPEATMASKER_OFFLINE_SETUP:
 
             assert lib_source.suffix == ".gz"
 
-            cmd = ["gzip", "-c", "-d", str(lib_source), ">", str(lib_target)]
-            _ = sp.check_call(cmd)
+            # NB: use string cmd here b/c of the redirect '>'
+            cmd = " ".join(
+                ["gzip", "-c", "-d", str(lib_source), ">", str(lib_target)]
+            )
+            _ = sp.check_call(cmd, shell=True)
 
             assert lib_target.is_file()
 
@@ -115,8 +118,11 @@ if REPEATMASKER_DFAM_ROOT_PART_FILE is not None:
 
             dfam_file_target = conda_root.joinpath(subfolder, dfam_file_name)
 
-            cmd = ["git", "-c", "-d", str(dfam_file_source), ">", str(dfam_file_target)]
-            _ = sp.check_call(cmd)
+            # NB: use string cmd here b/c of the redirect '>'
+            cmd = " ".join(
+                ["git", "-c", "-d", str(dfam_file_source), ">", str(dfam_file_target)]
+            )
+            _ = sp.check_call(cmd, shell=True)
 
             # check if "mini db" file exists and delete
             mini_db = conda_root.joinpath(subfolder, "min_init.0.h5").resolve()
