@@ -1,0 +1,14 @@
+# dnaio and pigz are the only non-essentials
+# in this environment, everything else is
+# a dependency of repeatmasker
+
+name: motif_tools
+dependencies:
+  - repeatmasker=4.1.7p1
+  - rmblast=2.14.*
+  - hmmer=3.4
+  - trf=4.09.1
+  - pigz=2.8
+  - python=3.13.*
+  - dnaio=1.2.*
+  - numpy=2.2.*
