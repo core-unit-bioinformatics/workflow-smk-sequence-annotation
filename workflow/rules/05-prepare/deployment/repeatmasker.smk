@@ -128,7 +128,7 @@ if REPEATMASKER_DFAM_ROOT_PART_FILE is not None:
                 _ = check_file.write(f"{this_rule}\n{get_timestamp()}\n")
         # END OF RUN BLOCK
 
-    REPEATMASKER_SETUP_OK.append(rules.add_dfam_root_partition)
+    REPEATMASKER_SETUP_OK.append(rules.add_dfam_root_partition.output.rm_dfam_root_ok)
 
 
 localrules: produce_testseq_file
