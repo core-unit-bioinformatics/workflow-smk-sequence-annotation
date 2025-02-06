@@ -120,7 +120,7 @@ if REPEATMASKER_DFAM_ROOT_PART_FILE is not None:
 
             # NB: use string cmd here b/c of the redirect '>'
             cmd = " ".join(
-                ["git", "-c", "-d", str(dfam_file_source), ">", str(dfam_file_target)]
+                ["gzip", "-c", "-d", str(dfam_file_source), ">", str(dfam_file_target)]
             )
             _ = sp.check_call(cmd, shell=True)
 
