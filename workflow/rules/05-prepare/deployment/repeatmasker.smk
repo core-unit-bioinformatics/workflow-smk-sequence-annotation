@@ -151,7 +151,7 @@ rule dump_testseq_file:
 rule build_repeatmasker_database:
     input:
         fasta = rules.dump_testseq_file.output.fasta,
-        rm_setup_ok = REPEATMASKER_SETUP_OK
+        rm_setup_ok = list(map(str, REPEATMASKER_SETUP_OK))
     output:
         rm_db_built_ok = DIR_PROC.joinpath(
             "05-prepare", "deployment", "repeatmasker_db_built.ok"
