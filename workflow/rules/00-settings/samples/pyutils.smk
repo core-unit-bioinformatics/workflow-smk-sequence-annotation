@@ -209,7 +209,7 @@ def _collect_input_files(path_spec):
             fofn_files = _read_input_files_from_fofn(input_path)
             fofn_hashes = [
                 hashlib.sha256(
-                    subset_path(fp).encode("utf-8")
+                    _subset_path(fp).encode("utf-8")
                 ).hexdigest() for fp in fofn_files
             ]
             input_files.extend(fofn_files)
@@ -219,7 +219,7 @@ def _collect_input_files(path_spec):
             )
         elif input_path.is_file():
             input_hash = hashlib.sha256(
-                subset_path(input_path).encode("utf-8")
+                _subset_path(input_path).encode("utf-8")
             ).hexdigest()
             input_files.append(input_path)
             input_hashes.append(input_hash)
@@ -228,7 +228,7 @@ def _collect_input_files(path_spec):
             collected_files = _glob_collect_files(input_path)
             collected_hashes = [
                 hashlib.sha256(
-                    subset_path(fp).encode("utf-8")
+                    _subset_path(fp).encode("utf-8")
                 ).hexdigest() for fp in collected_files
             ]
             input_files.extend(collected_files)
