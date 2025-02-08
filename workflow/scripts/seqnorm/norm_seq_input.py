@@ -112,8 +112,8 @@ def link_file(input_file, output_file):
 
 def create_fasta_index(file_path):
 
-    assert file_path.is_file().resolve(strict=True)
-    cmd = ["samtools", "faidx", file_path]
+    assert file_path.is_file()
+    cmd = ["samtools", "faidx", file_path.resolve(strict=True)]
     exec_sys_call(cmd)
     return
 
