@@ -1,3 +1,5 @@
+import collections
+
 """
 All functions in this module are candidates
 for inclusion in the template / commons modules.
@@ -21,18 +23,29 @@ def match_sample_path_id(*wildcards):
     sample_wildcards = set(t[1] for t in wildcards[0])
     path_wildcards = set(t[1] for t in wildcards[1])
 
+    other_wildcards = collections.defaultdict(list)
+    if len(wildcards) > 2:
+        for wildcard_list in wildcards[2:]:
+            [
+                other_wildcards[name].append(value)
+                for name, value in wildcard_list
+            ]
+
     wildcard_combinations = []
     for sample in sample_wildcards:
         all_paths_for_sample = SAMPLE_INPUT[sample]["all_path_ids"]
         for path in all_paths_for_sample:
             if path not in path_wildcards:
                 continue
-            wildcard_combinations.append(
-                {
-                    "sample": sample,
-                    "path_id": path
-                }
-            )
+            this_combination = {
+                "sample": sample,
+                "path_id": path
+            }
+            for other_wildcard, other_values in other_wildcards.items():
+                for value in other_values:
+                    tmp = dict(this_combination)
+                    tmp[other_wildcard] = value
+                    wildcard_combinations.append(tmp)
 
     return wildcard_combinations
 
