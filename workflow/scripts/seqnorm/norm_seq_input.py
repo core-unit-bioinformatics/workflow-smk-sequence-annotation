@@ -105,7 +105,7 @@ def convert_file(input_file, output_file):
 def link_file(input_file, output_file):
 
     output_file.parent.mkdir(exist_ok=True, parents=True)
-    cmd = ["ln", input_file, output_file]
+    cmd = ["ln", "--force", input_file, output_file]
     exec_sys_call(cmd)
     return
 
