@@ -105,12 +105,12 @@ def _find_file_input_column(sample_sheet_header):
             input_column = column
         else:
             pass
-    if sample_column is None:
+    if input_column is None:
         raise RuntimeError(
             f"Cannot identify sample column in sample sheet header: {sample_sheet_header}"
         )
 
-    return sample_column
+    return input_column
 
 
 
