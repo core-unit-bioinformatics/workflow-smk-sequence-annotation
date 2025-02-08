@@ -21,7 +21,7 @@ def parse_command_line():
 
     parser.add_argument(
         "-o", "--output", "--output-file",
-        type=lambda fp: pl.Path(fp).resolve(strict=True),
+        type=lambda fp: pl.Path(fp).resolve(),
         dest="output_file",
         required=True
     )
