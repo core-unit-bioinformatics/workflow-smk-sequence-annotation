@@ -12,7 +12,7 @@ rule check_input_sequences:
             "{sample}", "{sample}.{path_id}.fasta"
         )
     conda:
-        DIR_ENVS.joinpath()
+        DIR_ENVS.joinpath("scripts", "pyseq.yaml")
     resources:
         mem_mb=lambda wildcards, attempt: 2048 * attempt,
         time_hrs=lambda wildcards, attempt: attempt * attempt
