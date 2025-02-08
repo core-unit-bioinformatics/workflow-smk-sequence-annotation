@@ -2,7 +2,7 @@
 rule repeatmasker_default_run:
     input:
         setup_ok = rules.setup_repeatmasker.input.ok,
-        fasta = rules.norm_seq_input.output.norm_file
+        fasta = rules.check_input_sequences.output.norm_file
     output:
         check = DIR_PROC.joinpath(
             "10-annotate", "repeats", "repeatmasker",
