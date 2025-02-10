@@ -41,11 +41,14 @@ def match_sample_path_id(*wildcards):
                 "sample": sample,
                 "path_id": path
             }
-            for other_wildcard, other_values in other_wildcards.items():
-                for value in other_values:
-                    tmp = dict(this_combination)
-                    tmp[other_wildcard] = value
-                    wildcard_combinations.append(tmp)
+            if len(other_wildcards) > 0:
+                for other_wildcard, other_values in other_wildcards.items():
+                    for value in other_values:
+                        tmp = dict(this_combination)
+                        tmp[other_wildcard] = value
+                        wildcard_combinations.append(tmp)
+            else:
+                wildcard_combinations.append(this_combination)
 
     return wildcard_combinations
 
