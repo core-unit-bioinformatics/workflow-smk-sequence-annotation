@@ -19,6 +19,8 @@ rule repeatmasker_default_run:
         )
     wildcard_constraints:
         sample=CONSTRAINT_ALL_SAMPLES
+    conda:
+        DIR_ENVS.joinpath("biotools", "motif_tools.yaml")
     threads: lambda wildcards, attempt: CPU_LOW if attempt < 2 else CPU_MEDIUM
     resources:
         mem_mb = lambda wildcards, attempt, input: attempt * get_repeatmasker_run_memory_mb(input.size_mb),
