@@ -29,6 +29,8 @@ rule repeatmasker_default_run:
     shell:
         "RepeatMasker -pa {threads} -s -dir {params.outdir} "
         "-species {params.species} {input.fasta} &> {log}"
+            " && "
+        "touch {output.check}"
 
 
 rule run_all_repeatmasker_default:
