@@ -11,7 +11,8 @@ rule minimap_align_region_db:
             "{sample}.minimap.wd",
             "{sample}.{path_id}.{region_db}.aln.paf.gz"
         )
-    benchmark: DIR_RSRC.joinpath(
+    benchmark:
+        DIR_RSRC.joinpath(
             "10-annotate", "region_db", "minimap",
             "{sample}.{path_id}.{region_db}.aln.mm2.rsrc"
         )
