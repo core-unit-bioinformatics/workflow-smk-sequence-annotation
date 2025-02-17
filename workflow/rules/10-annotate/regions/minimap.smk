@@ -31,7 +31,7 @@ rule minimap_align_region_db:
 
 rule normalize_paf_align_region_db:
     input:
-        paf = rule.minimap_align_region_db.output.paf,
+        paf = rules.minimap_align_region_db.output.paf,
     output:
         tsv = DIR_PROC.joinpath(
             "10-annotate", "region_db", "minimap",
