@@ -96,7 +96,7 @@ def read_normalized_paf_file(file_path):
 
 def select_anchor_subset(subset, active_rows):
 
-    anchor_region_idx = subset.loc[active_rows, "align_matching"].idxmax()
+    anchor_region_idx = subset.loc[active_rows, "priority"].idxmax()
     anchor_name, anchor_size = subset.loc[
         anchor_region_idx, ["query_name", "query_length"]
     ].values
@@ -178,7 +178,7 @@ def check_open_region(target_region, region_cover, min_shrink_fraction):
     num_uncovered = select_uncovered.sum()
     if num_uncovered > 0:
         if num_uncovered >= target_region.size:
-            new_target_region = target_region
+            new_target_region = [target_region]
         else:
             # try to shrink target region
             # to fit between to other covered regions
@@ -191,20 +191,47 @@ def check_open_region(target_region, region_cover, min_shrink_fraction):
                 assert region[-1] == target_region.end - 1
                 new_start = region[select_uncovered].min()
                 assert new_start >= target_region.start
-                new_end = region[select_uncovered].max()
+                # new_end + 1: correct for half-open indexing in numpy;
+                # right-exclusive indexing; converting from position to
+                # index
+                new_end = region[select_uncovered].max() + 1
                 assert new_end <= target_region.end
 
-                assert (region_cover[new_start:new_end] == 0).all(), f"Fragmented alignment: {target_region}"
-
-                old_size = target_region.size
-                new_size = new_end - new_start
-                assert new_size > 0
-                region_score = round(new_size / old_size * 1000)
-                assert region_score <= 1000
-                new_target_region = TargetRegion(
-                    new_start, new_end, target_region.orient,
-                    new_size, region_score, target_region.anchor_idx
-                )
+                if not (region_cover[new_start:new_end] == 0).all():
+                    # inverting mask => mask everything that is already covered
+                    split_alignment = msk.MaskedArray(
+                        data=region,
+                        mask=~select_uncovered
+                    )
+                    new_target_region = []
+                    old_size = target_region.size
+                    for split_region in msk.clump_unmasked(split_alignment):
+                        new_start = region[split_region].min()
+                        assert new_start >= target_region.start
+                        new_end = region[split_region].max() + 1
+                        assert new_end <= target_region.end
+                        assert (region_cover[new_start:new_end] == 0).all()
+                        new_size = new_end - new_start
+                        region_score = round(new_size / old_size * 1000)
+                        assert region_score <= 1000
+                        new_target_region.append(
+                            TargetRegion(
+                                new_start, new_end, target_region.orient,
+                                new_size, region_score, target_region.anchor_idx
+                            )
+                        )
+                else:
+                    old_size = target_region.size
+                    new_size = new_end - new_start
+                    assert new_size > 0
+                    region_score = round(new_size / old_size * 1000)
+                    assert region_score <= 1000
+                    new_target_region = [
+                        TargetRegion(
+                            new_start, new_end, target_region.orient,
+                            new_size, region_score, target_region.anchor_idx
+                        )
+                    ]
     else:
         raise ClosedRegionError
 
@@ -235,23 +262,28 @@ def _dump_process_log(process_log, subset=None, reorder=False):
 
 
 def find_region_cover(paf, target_seq, min_shrink_fraction, region_scores, process_log):
-
-    # The subsequent code makes use of idxmax
-    # to select anchor regions. idxmax returns
-    # the _first_ occurrence of the maximal value
-    # in a column. Hence, we sort here by
-    # >>> align_matching, mapq, align_total, target_start
-    # to enable breaking ties in that order.
-    # If alignments tie nevertheless, the result
-    # is defined by Panda's sorting algorithm
+    """This function processes all alignments for a target sequence
+    ordered by priority. The priority is computed as follows:
+    - add new binary column: mapq_nonzero (split alignments into MAPQ == 0 and MAPQ > 0)
+    - sort by
+    --- mapq_nonzero (desc)
+    --- mapq (desc)
+    --- align_matching (desc)
+    --- align_total (asc)
+    --- target_start (asc)
+    ---> assign priority from high to low following sort order
+    """
     target_subset = paf.loc[
         paf["target_name"] == target_seq, :
     ].copy()
+    target_subset["mapq_nonzero"] = 0
+    target_subset.loc[target_subset["mapq"] > 0, "mapq_nonzero"] = 1
     target_subset.sort_values(
-        ["align_matching", "mapq", "align_total", "target_start"],
-        ascending=[False, False, True, True],
+        ["mapq_nonzero", "mapq", "align_matching", "align_total", "target_start"],
+        ascending=[False, False, False, True, True],
         inplace=True
     )
+    target_subset["priority"] = np.flip(np.arange(0, target_subset.shape[0], dtype=int))
 
     # track what has been covered already
     region_cover = np.zeros(target_subset["target_length"].iloc[0], dtype=int)
@@ -289,14 +321,16 @@ def find_region_cover(paf, target_seq, min_shrink_fraction, region_scores, proce
                 region_scores[p] = 0
         else:
             # multiply by orientation -> revs are < 0
-            region_cover[
-                target_region.start:target_region.end
-            ] = target_region.anchor_idx * target_region.orient
-            region_scores[anchor_idx] = target_region.score
-            make_process_record(
-                process_log, proc_rows, anchor_idx,
-                f"SET-ANCHOR-{anchor_idx}", f"SET-MERGE-{anchor_idx}"
-            )
+            for regnum, tr in enumerate(target_region, start=0):
+                region_cover[
+                    tr.start:tr.end
+                ] = tr.anchor_idx * tr.orient
+                if regnum < 1:
+                    region_scores[anchor_idx] = tr.score
+                    make_process_record(
+                        process_log, proc_rows, anchor_idx,
+                        f"SET-ANCHOR-{anchor_idx}", f"SET-MERGE-{anchor_idx}"
+                    )
         processed_rows = processed_rows.union(proc_rows)
         active_rows = sorted(
             set(active_rows) - processed_rows
@@ -329,6 +363,8 @@ def produce_region_annotation(target_seq, region_cover, region_scores, paf):
         sub = masked_regions[slice.start:slice.stop]
         idx = sub.data[0]
         if (sub.data == idx).all():
+            # case: covered region in-between uncovered gaps
+            # resulting from a single alignment
             region_label = extract_region_label(idx, paf)
             orient = "+" if idx > 0 else "-"
             sequence_regions.append(
@@ -339,23 +375,73 @@ def produce_region_annotation(target_seq, region_cover, region_scores, paf):
                 )
             )
         else:
-            uniq_values, uniq_starts = np.unique(sub.data, return_index=True)
-            offset = slice.start
-            for (start1, idx1), (start2, idx2) in itt.pairwise(sorted(zip(uniq_starts, uniq_values))):
-                region_start = offset + start1
-                region_end = offset + start2
-                assert idx1 != idx2
-                assert (masked_regions[region_start:region_end] == idx1).all()
-                region_label = extract_region_label(idx1, paf)
-                orient = "+" if idx1 > 0 else "-"
-                sequence_regions.append(
-                    (
-                        target_seq, region_start, region_end,
-                        region_label, region_scores[abs(idx1)],
-                        orient, abs(idx1)
-                    )
-                )
+            # case: consecutive regions resulting from different
+            # alignments; iterate over anchor idx values sorted
+            # by their start position.
+            # NB: split alignments lead to situations like
+            # idx1 --- idx2 --- idx1
 
+            # try faster code path that only works
+            # if not split alignments are present
+            try:
+                seq_reg = create_consecutive_regions_fast(
+                    target_seq, sub, slice.start,
+                    masked_regions, region_scores, paf
+                )
+            except AssertionError:
+                seq_reg = create_consecutive_regions_slow(
+                    target_seq, sub, slice.start,
+                    masked_regions, region_scores, paf
+                )
+            sequence_regions.extend(seq_reg)
+
+    return sequence_regions
+
+
+def create_consecutive_regions_fast(target_seq, data_subset, offset, masked_regions, region_scores, paf):
+    """This computation only works w/o split alignments because
+    np.unique does only return the first index of a unique value
+    (and not 'all' of them)
+    """
+    sequence_regions = []
+    uniq_values, uniq_starts = np.unique(data_subset.data, return_index=True)
+    iter_list = sorted(zip(uniq_starts, uniq_values))
+    for (start1, idx1), (start2, idx2) in itt.pairwise(iter_list):
+        region_start = offset + start1
+        region_end = offset + start2
+        assert idx1 != idx2
+        assert (masked_regions[region_start:region_end] == idx1).all()
+        region_label = extract_region_label(idx1, paf)
+        orient = "+" if idx1 > 0 else "-"
+        sequence_regions.append(
+            (
+                target_seq, region_start, region_end,
+                region_label, region_scores[abs(idx1)],
+                orient, abs(idx1)
+            )
+        )
+    return sequence_regions
+
+
+def create_consecutive_regions_slow(target_seq, data_subset, offset, masked_regions, region_scores, paf):
+
+    sequence_regions = []
+    unique_values = np.unique(data_subset.data)
+    for unique_value in unique_values:
+        value_masked = msk.masked_not_equal(data_subset.data, unique_value)
+        for split_region in msk.clump_unmasked(value_masked):
+            region_start = offset + split_region.start
+            region_end = offset + split_region.stop
+            assert (masked_regions[region_start:region_end] == unique_value).all()
+            region_label = extract_region_label(unique_value, paf)
+            orient = "+" if unique_value > 0 else "-"
+            sequence_regions.append(
+                (
+                    target_seq, region_start, region_end,
+                    region_label, region_scores[abs(unique_value)],
+                    orient, abs(unique_value)
+                )
+            )
     return sequence_regions
 
 
@@ -374,7 +460,6 @@ def adapt_end_entries(regions, adapt):
 
 
 def simplify_region_annotation(regions, gap_size_threshold):
-
 
     for seq in regions["#chrom"].unique():
         simplified_regions = []
@@ -397,7 +482,6 @@ def simplify_region_annotation(regions, gap_size_threshold):
             else:
                 print(name_regions)
                 raise
-
 
 
 def main():
@@ -430,11 +514,18 @@ def main():
     args.out_regions.parent.mkdir(exist_ok=True, parents=True)
     out_regions.to_csv(args.out_regions, sep="\t", header=True, index=False)
 
-    if True:
+    if False:
         simplify_region_annotation(out_regions, 10000)
 
     if args.debug_out:
-        pass
+        paf.insert(0, "row_idx_process_log", [process_log[i] for i in paf.index])
+        if args.out_regions.suffix == ".gz":
+            debug_out = args.out_regions.stem
+        else:
+            debug_out = args.out_regions
+        debug_out = debug_out.with_suffix(".process-debug-log.tsv.gz")
+        paf.index.name = "paf_row_idx"
+        paf.to_csv(debug_out, sep="\t", header=True, index=True)
 
     return 0
 
