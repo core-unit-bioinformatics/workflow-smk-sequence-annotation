@@ -22,7 +22,7 @@ rule minimap_align_region_db:
         DIR_ENVS.joinpath("biotools", "align_tools.yaml")
     threads: CPU_LOW
     resources:
-        mem_mb=lambda wildcards, attempt: 16384 * attempt,
+        mem_mb=lambda wildcards, attempt: 24576 * attempt,
         time_hrs=lambda wildcards, attempt: attempt * attempt
     shell:
         "minimap2 -x asm20 -t {threads} -N 5 -p 0.95 -L -c --eqx --MD "
@@ -48,10 +48,28 @@ rule normalize_paf_align_region_db:
         "{params.script} --input {input.paf} --output {output.tsv}"
 
 
+rule create_annotation_region_db:
+    input:
+        norm_paf = rules.normalize_paf_align_region_db.output.tsv,
+    output:
+        bedlike = DIR_PROC.joinpath(
+            "10-annotate", "region_db", "annotation",
+            "{sample}.{path_id}.{region_db}.labeled-regions.bed"
+        )
+    conda:
+        DIR_ENVS.joinpath("biotools", "align_tools.yaml")
+    resources:
+        mem_mb=lambda wildcards, attempt: 2048 * attempt
+    params:
+        script=find_script("create_region_set.py")
+    shell:
+        "{params.script} --input {input.norm_paf} --output {output.bedlike} --debug-out"
+
+
 rule run_all_minimap_region_db:
     input:
         tsv = expand(
-            rules.normalize_paf_align_region_db.output.tsv,
+            rules.create_annotation_region_db.output.bedlike,
             match_sample_path_id,
             sample=SAMPLES,
             path_id=PATH_IDS,
