@@ -348,6 +348,10 @@ def extract_region_label(idx, paf):
 
 def produce_region_annotation(target_seq, region_cover, region_scores, paf):
 
+    indices_in_region = set(
+        abs(idx) for idx in np.unique(region_cover)
+    )
+
     masked_regions = msk.masked_not_equal(region_cover, 0)
     # all _covered_ regions are now masked
 
@@ -381,19 +385,34 @@ def produce_region_annotation(target_seq, region_cover, region_scores, paf):
             # NB: split alignments lead to situations like
             # idx1 --- idx2 --- idx1
 
-            # try faster code path that only works
-            # if not split alignments are present
             try:
-                seq_reg = create_consecutive_regions_fast(
+                seq_reg = create_consecutive_regions_slow(
                     target_seq, sub, slice.start,
                     masked_regions, region_scores, paf
                 )
+
+                # ERROR --- this function needs to be debugged
+
+                # try faster code path that only works
+                # if not split alignments are present
+                # seq_reg = create_consecutive_regions_fast(
+                #     target_seq, sub, slice.start,
+                #     masked_regions, region_scores, paf
+                # )
             except AssertionError:
                 seq_reg = create_consecutive_regions_slow(
                     target_seq, sub, slice.start,
                     masked_regions, region_scores, paf
                 )
             sequence_regions.extend(seq_reg)
+
+    processed_indices = set([
+        abs(region[6]) if region[3] != "uncertain" else 0
+        for region in sequence_regions
+    ])
+
+    same_elements = len(indices_in_region) == len(indices_in_region.intersection(processed_indices))
+    assert same_elements, "Row idx / anchors dropped"
 
     return sequence_regions
 
@@ -403,9 +422,12 @@ def create_consecutive_regions_fast(target_seq, data_subset, offset, masked_regi
     np.unique does only return the first index of a unique value
     (and not 'all' of them)
     """
+    raise RuntimeError("This function contains an off-by-one bug due to the pairwise iteration")
     sequence_regions = []
     uniq_values, uniq_starts = np.unique(data_subset.data, return_index=True)
     iter_list = sorted(zip(uniq_starts, uniq_values))
+    # ERROR: itertools.pairwise --- last element in iter_list
+    # is silently dropped, misses from sequence_regions output
     for (start1, idx1), (start2, idx2) in itt.pairwise(iter_list):
         region_start = offset + start1
         region_end = offset + start2
