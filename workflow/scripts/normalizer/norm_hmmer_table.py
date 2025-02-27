@@ -7,6 +7,7 @@ import re
 import sys
 
 import pandas as pd
+pd.set_option('future.no_silent_downcasting', True)
 import xopen
 
 
@@ -154,12 +155,36 @@ class HmmerTable:
             md_block = "# empty-file-no-metadata"
         return md_block
 
-    def to_dataframe(self):
+    def to_dataframe(self, keep_hmmer_format=False, score_threshold=None):
 
         df = pd.DataFrame.from_records(
             [dcl.astuple(table_row) for table_row in self.data],
             columns=self.header
         )
+        if not keep_hmmer_format:
+            df["strand"] = df["strand"].replace(
+                {"+": 1, "-": -1, ".": 0},
+                inplace=False
+            ).astype(int)
+            # switch coordinates for negative strand
+            # from HMMER manual:
+            # "strand: The strand on which the hit was found (“-" when alifrom>ali to)."
+            negative_strand = df["strand"] < 0
+            df.loc[negative_strand, ["target_hit_start", "target_hit_end"]] = df.loc[
+                negative_strand, ["target_hit_end", "target_hit_start"]
+            ].values
+            df.loc[negative_strand, ["target_env_start", "target_env_end"]] = df.loc[
+                negative_strand, ["target_env_end", "target_env_start"]
+            ].values
+            assert (df["target_hit_start"] < df["target_hit_end"]).all()
+            assert (df["target_env_start"] < df["target_env_end"]).all()
+        assert not pd.isnull(df).any(axis=0).any()
+
+        if score_threshold is not None:
+            df["high_quality_hit"] = 0
+            select_hiq = df["bit_score"] > score_threshold
+            df.loc[select_hiq, "high_quality_hit"] = 1
+
         return df
 
 
@@ -198,9 +223,29 @@ def parse_command_line():
     )
 
     parser.add_argument(
+        "--keep-hmmer-format",
+        action="store_true",
+        default=False,
+        dest="keep_hmmer_format"
+    )
+
+    parser.add_argument(
+        "--add-score-threshold", "-score-t",
+        type=int,
+        dest="score_threshold",
+        default=None,
+        help=(
+            "If set, add a new binary column 'high_quality_hit' and "
+            "label hit as 1 if its bit score is above the threshold "
+            "and 0 otherwise. Default: None"
+        )
+    )
+
+    parser.add_argument(
         "--output-table", "-ot", "-o",
         type=lambda fp: pl.Path(fp).resolve(strict=False),
-        dest="output_table"
+        dest="output_table",
+        required=True
     )
 
     args = parser.parse_args()
@@ -222,7 +267,7 @@ def main():
     with xopen.xopen(args.output_table, "w") as table:
         if args.add_metadata:
             table.write(hmmer_table.get_metadata())
-        df = hmmer_table.to_dataframe()
+        df = hmmer_table.to_dataframe(args.keep_hmmer_format, args.score_threshold)
         if df is not None:
             df.to_csv(table, sep="\t", header=True, index=False)
 
