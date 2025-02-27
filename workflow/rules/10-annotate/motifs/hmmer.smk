@@ -82,9 +82,9 @@ rule compress_raw_hmmer_output:
             "{sample}.{path_id}.{motif}.hmmer-out.txt.gz"
         )
     shell:
-        "gzip {input.table} > {output.table}"
+        "gzip -c {input.table} > {output.table}"
             " && "
-        "gzip {input.text} > {output.text}"
+        "gzip -c {input.text} > {output.text}"
 
 
 rule run_all_hmmer_motif_searches:
