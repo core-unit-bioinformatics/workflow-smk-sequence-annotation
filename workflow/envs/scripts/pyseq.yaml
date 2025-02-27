@@ -3,6 +3,8 @@ dependencies:
   - python=3.12.*
   - dnaio=1.2.*
   - xopen=2.0.*
+  - pandas=2.2.*
+  - numpy=2.2.*
   - filetype=1.2.*
   - pyfaidx=0.8.*
   - seqtk=1.4

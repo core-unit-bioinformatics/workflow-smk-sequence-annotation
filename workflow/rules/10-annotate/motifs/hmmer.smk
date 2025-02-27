@@ -45,10 +45,59 @@ rule hmmer_motif_search:
         "{input.motif} {input.fasta}"
 
 
+rule normalize_hmmer_output_table:
+    input:
+        txt_table = rules.hmmer_motif_search.output.table
+    output:
+        tsv = DIR_RES.joinpath(
+            "annotations", "motifs", "hmmer",
+            "{sample}.{path_id}.{motif}.hmmer-tblout-norm.tsv.gz"
+        )
+    conda:
+        DIR_ENVS.joinpath("scripts", "pyseq.yaml")
+    resources:
+        mem_mb=lambda wildcards, attempt: 1024 * attempt
+    params:
+        script=find_script("norm_hmmer_table")
+        score_t = lambda wildcards: (
+            f"-score-t {hmmer_threshold_value('score', wildcards.motif)}"
+            if hmmer_threshold_value('score', wildcards.motif) > 0 else ""
+        )
+    shell:
+        "{params.script} --hmmer-table {input.table} --add-metadata "
+        "{params.score_t} --output-table {output.tsv}"
+
+
+rule compress_raw_hmmer_output:
+    input:
+        table = rules.hmmer_motif_search.output.table,
+        text = rules.hmmer_motif_search.output.txt
+    output:
+        table = DIR_RES.joinpath(
+            "annotations", "motifs", "hmmer", "raw",
+            "{sample}.{path_id}.{motif}.hmmer-tblout.txt.gz"
+        ),
+        text = DIR_RES.joinpath(
+            "annotations", "motifs", "hmmer", "raw",
+            "{sample}.{path_id}.{motif}.hmmer-out.txt.gz"
+        )
+    shell:
+        "gzip {input.table} > {output.table}"
+            " && "
+        "gzip {input.text} > {output.text}"
+
+
 rule run_all_hmmer_motif_searches:
     input:
         tables = expand(
-            rules.hmmer_motif_search.output.table,
+            rules.normalize_hmmer_output_table.output.tsv,
+            match_sample_path_id,
+            sample=SAMPLES,
+            path_id=PATH_IDS,
+            motif=HMMER_MOTIF_NAMES
+        ),
+        raw_out = expand(
+            rules.compress_raw_hmmer_output.output.text,
             match_sample_path_id,
             sample=SAMPLES,
             path_id=PATH_IDS,

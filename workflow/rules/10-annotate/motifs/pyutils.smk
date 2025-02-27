@@ -39,15 +39,19 @@ def hmmer_threshold_value(threshold, motif_name):
     _DEFAULT_HMMER_EVALUE = "10"
     _DEFAULT_HMMER_SCORE = 0
 
-    assert threshold in ["evalue_t", "evalue", "score", "score_t"]
+    assert threshold in [
+        "evalue_t", "evalue",
+        "score", "score_t",
+        "bit_score", "bit_score_t"
+    ]
 
     t_value = None
     if threshold in ["evalue", "evalue_t"]:
         # NB: only the E-value threshold is used in the HMMER call
         t_value = HMMER_MOTIF_PARAMS[motif_name].get("evalue_t", _DEFAULT_HMMER_EVALUE)
 
-    if threshold in ["score", "score_t"]:
-        t_value = HMMER_MOTIF_PARAMS[motif_name].get("score_t", _DEFAULT_HMMER_EVALUE)
+    if threshold in ["score", "score_t", "bit_score", "bit_score_t"]:
+        t_value = HMMER_MOTIF_PARAMS[motif_name].get("score_t", _DEFAULT_HMMER_SCORE)
 
     assert t_value is not None
 
