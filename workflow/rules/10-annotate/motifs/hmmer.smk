@@ -64,7 +64,7 @@ rule normalize_hmmer_output_table:
             if hmmer_threshold_value('score', wildcards.motif) > 0 else ""
         )
     shell:
-        "{params.script} --hmmer-table {input.table} --add-metadata "
+        "{params.script} --hmmer-table {input.txt_table} --add-metadata "
         "{params.score_t} --output-table {output.tsv}"
 
 
