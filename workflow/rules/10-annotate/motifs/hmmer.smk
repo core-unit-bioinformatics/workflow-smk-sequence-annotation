@@ -58,7 +58,7 @@ rule normalize_hmmer_output_table:
     resources:
         mem_mb=lambda wildcards, attempt: 1024 * attempt
     params:
-        script=find_script("norm_hmmer_table")
+        script=find_script("norm_hmmer_table"),
         score_t = lambda wildcards: (
             f"-score-t {hmmer_threshold_value('score', wildcards.motif)}"
             if hmmer_threshold_value('score', wildcards.motif) > 0 else ""
