@@ -65,7 +65,7 @@ rule run_all_repeatmasker_default:
     """
     input:
         checks = expand(
-            rules.repeatmasker_default_run.output.check,
+            rules.repeatmasker_default_run.output.summary,
             match_sample_path_id,
             sample=SAMPLES,
             path_id=PATH_IDS
