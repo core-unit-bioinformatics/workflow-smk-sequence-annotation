@@ -51,7 +51,18 @@ rule normalize_hmmer_output_table:
     output:
         tsv = DIR_RES.joinpath(
             "annotations", "motifs", "hmmer",
+            "{sample}",
             "{sample}.{path_id}.{motif}.hmmer-tblout-norm.tsv.gz"
+        ),
+        tmp_bed = temp(
+            DIR_RES.joinpath(
+                "annotations", "motifs", "hmmer", "tmp",
+                "{sample}.{path_id}.{motif}.hmmer-tblout-norm.bed"
+        )),
+        bed = DIR_RES.joinpath(
+            "annotations", "motifs", "hmmer",
+            "{sample}",
+            "{sample}.{path_id}.{motif}.hmmer-tblout-norm.bed.gz"
         )
     conda:
         DIR_ENVS.joinpath("scripts", "pyseq.yaml")
@@ -65,7 +76,11 @@ rule normalize_hmmer_output_table:
         )
     shell:
         "{params.script} --hmmer-table {input.txt_table} --add-metadata "
-        "{params.score_t} --output-table {output.tsv}"
+        "{params.score_t} --output-table {output.tsv} --output-bedlike {output.tmp_bed}"
+            " && "
+        "bgzip -c {output.tmp_bed} > {output.bed}"
+            " && "
+        "tabix -p bed {output.bed}"
 
 
 rule compress_raw_hmmer_output:
@@ -74,11 +89,11 @@ rule compress_raw_hmmer_output:
         text = rules.hmmer_motif_search.output.txt
     output:
         table = DIR_RES.joinpath(
-            "annotations", "motifs", "hmmer", "raw",
+            "annotations", "motifs", "hmmer", "{sample}", "raw",
             "{sample}.{path_id}.{motif}.hmmer-tblout.txt.gz"
         ),
         text = DIR_RES.joinpath(
-            "annotations", "motifs", "hmmer", "raw",
+            "annotations", "motifs", "hmmer", "{sample}", "raw",
             "{sample}.{path_id}.{motif}.hmmer-out.txt.gz"
         )
     shell:

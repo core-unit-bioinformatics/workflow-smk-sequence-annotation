@@ -120,7 +120,15 @@ class HmmerTable:
         return
 
     def add_data_row(self, line_num, data_row):
+        """This function adds a 'data' row with the following transformations:
+        1) replace '-' by 'n/a' in fields where '-' does not indicate a complement match
 
+        NB: this function does _not_ change the coordinates.
+        By experimentation, the coordinate intervals reported by HMMER
+        are 1-based, half-open. In order to turn these coordinates into
+        0-based, half-open (= BED-compatible intervals, Python slicing etc.),
+        the >start< coordinate must be decremented by 1 (start -= 1)
+        """
         fields = data_row.split()
         fields = [
             field.replace("-", "n/a") if column_pos in self.na_fields else field
@@ -187,6 +195,47 @@ class HmmerTable:
 
         return df
 
+    def to_bedlike(self):
+        """The coordinate transformation below assumes the following
+        base enumeration/coordinate reporting by HMMER:
+
+        0.|.1.2.3.4.5.|.6.7.8 === Convert 0-based: (2-1):6
+        1.|.2.3.4.5.6.|.7.8.9 === HMMER forward: 2:6
+        A.|.C.C.G.T.T.|.G.C.A === Forward strand / match CCGTT
+        ------------------------------------------------------
+        T.G.C.|.A.A.C.G.G.|.T === Reverse strand / match AACGG
+        9.8.7.|.6.5.4.3.2.|.1 === HMMER reverse: 6:2
+        8.7.6.|.5.4.3.2.1.|.0 === Convert 0-based: (2-1):6
+
+        """
+
+        df = self.to_dataframe(keep_hmmer_format=False)
+
+        columns_to_keep = [
+            "target_name", "target_hit_start", "target_hit_end",
+            "query_name", "bit_score", "strand", "evalue", "high_quality_hit"
+        ]
+
+        columns_to_keep = [col for col in columns_to_keep if col in df.columns]
+        bedlike = df[columns_to_keep].copy()
+
+        if not df.empty:
+
+            assert (df["target_hit_start"] < df["target_hit_end"]).all()
+
+            bedlike["target_hit_start"] -= 1
+            bedlike["strand"] = bedlike["strand"].replace(
+                {-1: "-", 1: "+", 0: "."},
+                inplace=False
+            )
+            bedlike.sort_values(
+                ["target_name", "target_hit_start", "target_hit_end"],
+                inplace=True
+            )
+            bedlike["bit_score"] = bedlike["bit_score"].round(0).astype(int)
+
+        return bedlike
+
 
 def parse_command_line():
 
@@ -248,6 +297,12 @@ def parse_command_line():
         required=True
     )
 
+    parser.add_argument(
+        "--output-bedlike", "-bed",
+        type=lambda fp: pl.Path(fp).resolve(strict=False),
+        dest="output_bedlike"
+    )
+
     args = parser.parse_args()
 
     return args
@@ -268,8 +323,14 @@ def main():
         if args.add_metadata:
             table.write(hmmer_table.get_metadata())
         df = hmmer_table.to_dataframe(args.keep_hmmer_format, args.score_threshold)
-        if df is not None:
-            df.to_csv(table, sep="\t", header=True, index=False)
+        df.to_csv(table, sep="\t", header=True, index=False)
+
+    if args.output_bedlike is not None:
+        bedlike = hmmer_table.to_bedlike()
+        args.output_bedlike.parent.mkdir(exist_ok=True, parents=True)
+        with xopen.xopen(args.output_bedlike, "w") as bedfile:
+            _ = bedfile.write("#")
+            bedlike.to_csv(bedfile, sep="\t", header=True, index=False)
 
     return 0
 
