@@ -51,6 +51,40 @@ rule repeatmasker_default_run:
         "{input.fasta} &> {log}"
 
 
+rule normalize_repeatmasker_output_table:
+    input:
+        txt_table = rules.repeatmasker_default_run.output.table
+    output:
+        tsv = DIR_RES.joinpath(
+            "annotations", "repeats", "repeatmasker",
+            "{sample}",
+            "{sample}.{path_id}.repmask-tblout-norm.tsv.gz"
+        ),
+        tmp_bed = temp(
+            DIR_RES.joinpath(
+                "annotations", "repeats", "repeatmasker", "tmp",
+                "{sample}.{path_id}.repmask-tblout-norm.bed"
+        )),
+        bed = DIR_RES.joinpath(
+            "annotations", "repeats", "repeatmasker",
+            "{sample}",
+            "{sample}.{path_id}.repmask-tblout-norm.bed.gz"
+        )
+    conda:
+        DIR_ENVS.joinpath("scripts", "pyseq.yaml")
+    resources:
+        mem_mb=lambda wildcards, attempt: 2048 * attempt
+    params:
+        script=find_script("norm_repmask_table")
+    shell:
+        "{params.script} --repeatmasker-table {input.txt_table} "
+        "--output-table {output.tsv} --output-bedlike {output.tmp_bed}"
+            " && "
+        "bgzip -c {output.tmp_bed} > {output.bed}"
+            " && "
+        "tabix -p bed {output.bed}"
+
+
 rule run_all_repeatmasker_default:
     """Why the shell call?
     Failed RepeatMasker runs do not clean up after themselves
@@ -64,8 +98,8 @@ rule run_all_repeatmasker_default:
     interrupted in some way. Extremely annoying!!!
     """
     input:
-        checks = expand(
-            rules.repeatmasker_default_run.output.summary,
+        tables = expand(
+            rules.normalize_repeatmasker_output_table.output.tsv,
             match_sample_path_id,
             sample=SAMPLES,
             path_id=PATH_IDS
