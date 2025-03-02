@@ -56,7 +56,7 @@ class HmmerTable:
         assert isinstance(table_row, str)
         if table_row.startswith("# target name"):
             self.add_table_header(table_row)
-        elif re.match("^#\\s+\\-+", table_row) is not None:
+        elif re.match("^#(\\s+)?\\-+", table_row) is not None:
             # separating row, do nothing
             return
         elif table_row == "# [ok]":
