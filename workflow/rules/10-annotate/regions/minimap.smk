@@ -148,5 +148,5 @@ rule run_all_minimap_labeled_ref:
             match_sample_path_id,
             sample=SAMPLES,
             path_id=PATH_IDS,
-            region_db=MINIMAP_LABELED_REFERENCE_NAMES
+            labelref=MINIMAP_LABELED_REFERENCE_NAMES
         )
