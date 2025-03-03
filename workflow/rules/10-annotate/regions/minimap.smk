@@ -1,3 +1,15 @@
+"""This module implements two different alignment-based
+labeling strategies. The first one takes a 'region database'
+(= a FASTA file w/ more than one entry) and aligns those
+regions to the sample sequence.
+
+The second strategy does the inverse approach and aligns
+the sample sequences to a labeled reference sequence, i.e.
+this one requires a reference FASTA file and a corresponding
+BED file.
+"""
+
+### first set of rules: region database approach
 
 rule minimap_align_region_db:
     input:
@@ -9,12 +21,12 @@ rule minimap_align_region_db:
         paf = DIR_PROC.joinpath(
             "10-annotate", "region_db", "minimap",
             "{sample}.minimap.wd",
-            "{sample}.{path_id}.{region_db}.aln.paf.gz"
+            "{sample}.{path_id}.{region_db}.region-db-aln.paf.gz"
         )
     benchmark:
         DIR_RSRC.joinpath(
             "10-annotate", "region_db", "minimap",
-            "{sample}.{path_id}.{region_db}.aln.mm2.rsrc"
+            "{sample}.{path_id}.{region_db}.region-db-aln.mm2.rsrc"
         )
     wildcard_constraints:
         sample=CONSTRAINT_ALL_SAMPLES
@@ -36,7 +48,7 @@ rule normalize_paf_align_region_db:
         tsv = DIR_PROC.joinpath(
             "10-annotate", "region_db", "minimap",
             "{sample}.minimap.wd",
-            "{sample}.{path_id}.{region_db}.aln.norm-paf.tsv.gz"
+            "{sample}.{path_id}.{region_db}.region-db-aln.norm-paf.tsv.gz"
         )
     conda:
         DIR_ENVS.joinpath("biotools", "align_tools.yaml")
@@ -54,7 +66,7 @@ rule create_annotation_region_db:
     output:
         bedlike = DIR_PROC.joinpath(
             "10-annotate", "region_db", "annotation",
-            "{sample}.{path_id}.{region_db}.labeled-regions.bed"
+            "{sample}.{path_id}.{region_db}.regiondb-labeled.bed"
         )
     conda:
         DIR_ENVS.joinpath("biotools", "align_tools.yaml")
@@ -74,4 +86,67 @@ rule run_all_minimap_region_db:
             sample=SAMPLES,
             path_id=PATH_IDS,
             region_db=MINIMAP_REGION_DB_NAMES
+        )
+
+
+### second set of rules: labeled reference approach
+
+
+rule minimap_align_labeled_reference:
+    input:
+        fasta = rules.check_input_sequences.output.norm_file,
+        label_ref = lambda wildcards: DIR_GLOBAL_REF.joinpath(
+            MINIMAP_LABELED_REFERENCES[wildcards.labelref]["sequence"]
+        )
+    output:
+        paf = DIR_PROC.joinpath(
+            "10-annotate", "labeled_ref", "minimap",
+            "{sample}.minimap.wd",
+            "{sample}.{path_id}.{labelref}.label-ref-aln.paf.gz"
+        )
+    benchmark:
+        DIR_RSRC.joinpath(
+            "10-annotate", "labeled_ref", "minimap",
+            "{sample}.{path_id}.{labelref}.label-ref-aln.mm2.rsrc"
+        )
+    wildcard_constraints:
+        sample=CONSTRAINT_ALL_SAMPLES
+    conda:
+        DIR_ENVS.joinpath("biotools", "align_tools.yaml")
+    threads: CPU_LOW
+    resources:
+        mem_mb=lambda wildcards, attempt: 24576 * attempt,
+        time_hrs=lambda wildcards, attempt: attempt * attempt
+    shell:
+        "minimap2 -x asm20 -t {threads} --secondary=no -L -c --eqx --MD "
+        "{input.label_ref} {input.fasta} | gzip > {output.paf}"
+
+
+rule normalize_paf_align_labeled_ref:
+    input:
+        paf = rules.minimap_align_labeled_reference.output.paf,
+    output:
+        tsv = DIR_PROC.joinpath(
+            "10-annotate", "labeled_ref", "minimap",
+            "{sample}.minimap.wd",
+            "{sample}.{path_id}.{labelref}.label-ref-aln.norm-paf.tsv.gz"
+        )
+    conda:
+        DIR_ENVS.joinpath("biotools", "align_tools.yaml")
+    resources:
+        mem_mb=lambda wildcards, attempt: 2048 * attempt
+    params:
+        script=find_script("normalize_paf")
+    shell:
+        "{params.script} --input {input.paf} --output {output.tsv}"
+
+
+rule run_all_minimap_labeled_ref:
+    input:
+        tsv = expand(
+            rules.normalize_paf_align_labeled_ref.output.tsv,
+            match_sample_path_id,
+            sample=SAMPLES,
+            path_id=PATH_IDS,
+            region_db=MINIMAP_LABELED_REFERENCE_NAMES
         )
