@@ -29,6 +29,15 @@ def parse_command_line():
         help="Path to normalized TSV (will be gzipped) output table."
     )
 
+    parser.add_argument(
+        "--fail-on-empty",
+        "-f",
+        action="store_true",
+        dest="fail_on_empty",
+        default=False,
+        help="Fail on empty input instead of creating an empty output file."
+    )
+
     args = parser.parse_args()
 
     return args
@@ -232,14 +241,27 @@ def main():
 
     args = parse_command_line()
     alignments = read_alignment_file(args.input)
-    alignments.sort_values(
-        ["query_name", "align_total", "align_matching"],
-        ascending=[True, False, False],
-        inplace=True
-    )
+    if not alignments.empty:
+        alignments.sort_values(
+            ["query_name", "align_total", "align_matching"],
+            ascending=[True, False, False],
+            inplace=True
+        )
+    elif args.fail_on_empty:
+        raise RuntimeError(f"Empty input PAF: {args.input}")
+    else:
+        pass
 
     args.output.parent.mkdir(exist_ok=True, parents=True)
-    alignments.to_csv(args.output, sep="\t", header=True, index=False)
+    if not alignments.empty:
+        alignments.to_csv(args.output, sep="\t", header=True, index=False)
+    else:
+        with xopen.xopen(args.output, "w"):
+            # NB: the alignments dataframe does not have any column
+            # definitions if the input alignment paf is just empty
+            # (a paf does not always have the same column definitions),
+            # hence this will just produce an empty output
+            pass
 
     return 0
 

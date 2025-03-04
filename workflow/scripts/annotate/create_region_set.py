@@ -6,6 +6,7 @@ import itertools as itt
 import pathlib as pl
 
 import pandas as pd
+import pandas.errors as pderr
 import numpy as np
 import numpy.ma as msk
 
@@ -32,6 +33,14 @@ def parse_command_line():
     )
 
     parser.add_argument(
+        "--fail-on-empty", "-e",
+        action="store_true",
+        default=False,
+        dest="fail_on_empty",
+        help="Fail on empty input instead of generating empty output."
+    )
+
+    parser.add_argument(
         "--min-shrinking-fraction", "-f",
         type=float,
         default=0.25,
@@ -45,7 +54,7 @@ def parse_command_line():
 
     parser.add_argument(
         "--output", "--out-region-annotation",
-        "--bed-out",
+        "--bed-out", "-o",
         type=lambda fp: pl.Path(fp).resolve(),
         dest="out_regions",
         required=True,
@@ -82,14 +91,17 @@ def parse_command_line():
 
 def read_normalized_paf_file(file_path):
 
-    table = pd.read_csv(file_path, sep="\t", header=0)
-    # reindex starting at one so tracking the region coverage
-    # can use value 0 as "not covered"
-    # Throughout this script, it is vital to not change the index!
-    table.set_index(
-        np.arange(1, table.shape[0]+1, dtype=int),
-        inplace=True, verify_integrity=True
-    )
+    try:
+        table = pd.read_csv(file_path, sep="\t", header=0)
+        # reindex starting at one so tracking the region coverage
+        # can use value 0 as "not covered"
+        # Throughout this script, it is vital to not change the index!
+        table.set_index(
+            np.arange(1, table.shape[0]+1, dtype=int),
+            inplace=True, verify_integrity=True
+        )
+    except pderr.EmptyDataError:
+        table = None
 
     return table
 
@@ -515,23 +527,31 @@ def main():
 
     paf = read_normalized_paf_file(args.norm_paf)
 
-    out_regions = []
-    for target_seq in paf["target_name"].unique():
-
-        region_cover = find_region_cover(
-            paf, target_seq, args.min_shrinking_fraction,
-            region_scores, process_log
+    if paf is None and args.fail_on_empty:
+        raise RuntimeError(f"Empty input PAF: {args.norm_paf}")
+    elif paf is None:
+        out_regions = pd.DataFrame(
+            [],
+            columns=["#chrom", "start", "end", "name", "score", "strand", "anchor_row"]
         )
-        sequence_regions = produce_region_annotation(target_seq, region_cover, region_scores, paf)
-        out_regions.extend(sequence_regions)
+    else:
+        out_regions = []
+        for target_seq in paf["target_name"].unique():
 
-    out_regions = pd.DataFrame.from_records(
-        out_regions,
-        columns=["#chrom", "start", "end", "name", "score", "strand", "anchor_row"]
-    )
-    out_regions["anchor_row"] = out_regions["anchor_row"].fillna(0, inplace=False)
-    out_regions["anchor_row"] = out_regions["anchor_row"].astype(int)
-    out_regions.sort_values(["#chrom", "start", "end"], inplace=True)
+            region_cover = find_region_cover(
+                paf, target_seq, args.min_shrinking_fraction,
+                region_scores, process_log
+            )
+            sequence_regions = produce_region_annotation(target_seq, region_cover, region_scores, paf)
+            out_regions.extend(sequence_regions)
+
+        out_regions = pd.DataFrame.from_records(
+            out_regions,
+            columns=["#chrom", "start", "end", "name", "score", "strand", "anchor_row"]
+        )
+        out_regions["anchor_row"] = out_regions["anchor_row"].fillna(0, inplace=False)
+        out_regions["anchor_row"] = out_regions["anchor_row"].astype(int)
+        out_regions.sort_values(["#chrom", "start", "end"], inplace=True)
 
     args.out_regions.parent.mkdir(exist_ok=True, parents=True)
     out_regions.to_csv(args.out_regions, sep="\t", header=True, index=False)
@@ -539,7 +559,7 @@ def main():
     if False:
         simplify_region_annotation(out_regions, 10000)
 
-    if args.debug_out:
+    if args.debug_out and not paf is None:
         paf.insert(0, "row_idx_process_log", [process_log[i] for i in paf.index])
         if args.out_regions.suffix == ".gz":
             debug_out = args.out_regions.stem
