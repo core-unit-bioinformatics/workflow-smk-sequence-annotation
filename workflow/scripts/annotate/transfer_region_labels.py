@@ -293,14 +293,27 @@ def check_open_region(target_region, region_cover, min_shrink_fraction):
 
     select_uncovered = region_cover[target_region.start:target_region.end] == 0
     num_uncovered = select_uncovered.sum()
+    if target_region.start > 0:
+        left_bound_label = region_cover[target_region.start - 1] == target_region.label_idx
+    else:
+        # beginning of the contig - counted as true
+        left_bound_label = True
+    try:
+        right_bound_label = region_cover[target_region.end] == target_region.label_idx
+    except IndexError:
+        # end of the contig - counted as true
+        right_bound_label = True
+    boundary_label_compatible = left_bound_label & right_bound_label
     if num_uncovered > 0:
         if num_uncovered >= target_region.size:
             new_target_region = [target_region]
         else:
             # try to shrink target region
             # to fit between to other covered regions
+            # - Only make exception if labels to the left and right
+            # are identical, then just cover the open space.
             fraction = num_uncovered / target_region.size
-            if fraction < min_shrink_fraction:
+            if (fraction < min_shrink_fraction) and not boundary_label_compatible:
                 raise ShrinkingError
             else:
                 region = np.arange(target_region.start, target_region.end, dtype=int)
@@ -358,14 +371,15 @@ def check_open_region(target_region, region_cover, min_shrink_fraction):
     return new_target_region
 
 
-def make_process_record(process_log, indices, anchor_idx, anchor_label, other_label):
+def make_process_record(process_log, indices, label, overwrite=False):
 
     for i in indices:
-        assert i not in process_log, f"Collision: {indices} / anchor {anchor_idx}"
-        if i == anchor_idx:
-            process_log[i] = anchor_label
+        if overwrite:
+            process_log[i] = label
+        elif i in process_log:
+            process_log[i] += f",{label}"
         else:
-            process_log[i] = other_label
+            process_log[i] = label
     return
 
 
@@ -405,7 +419,7 @@ def get_overlaps(regions, seqname, interval):
     return ovl_labels
 
 
-def find_region_cover(paf, target_seq, labels, generic_label_lookup, min_shrink_fraction, region_scores, process_log):
+def find_region_cover(paf, target_seq, labels, generic_label_lookup, min_shrink_fraction, process_log):
     """This function processes all alignments for a target sequence
     ordered by priority. The priority is computed as follows:
     - add new binary column: mapq_nonzero (split alignments into MAPQ == 0 and MAPQ > 0)
@@ -432,8 +446,6 @@ def find_region_cover(paf, target_seq, labels, generic_label_lookup, min_shrink_
     # track what has been covered already
     region_cover = np.zeros(target_subset["query_length"].iloc[0], dtype=int)
 
-    min_shrink_score = round(min_shrink_fraction * 1000)
-
     if generic_label_lookup:
         overlaps = get_overlaps
     else:
@@ -457,8 +469,13 @@ def find_region_cover(paf, target_seq, labels, generic_label_lookup, min_shrink_
             )
             try:
                 cw.label_intervals(ovl_labels)
-            except AssertionError:
-                print(ovl_labels)
+            except AssertionError as aerr:
+                # can't do anything
+                err_msg = (
+                    "ERROR\nAssigning labels railed for alignment:\n"
+                    f"{aln_row}\n\n"
+                )
+                aerr.add_note(err_msg)
                 raise
 
             for labeled_region in cw.get_labeled_regions("query"):
@@ -467,32 +484,65 @@ def find_region_cover(paf, target_seq, labels, generic_label_lookup, min_shrink_
                     accept_regions = check_open_region(
                         labeled_region, region_cover, min_shrink_fraction)
                 except ShrinkingError:
-                    pass
+                    make_process_record(
+                        process_log, [labeled_region.row_idx],
+                        f"SKIP-PART-SHRINK-{labeled_region.row_idx}"
+                    )
                 except ClosedRegionError:
-                    pass
+                    make_process_record(
+                        process_log, [labeled_region.row_idx],
+                        f"SKIP-PART-CLOSED-{labeled_region.row_idx}"
+                    )
                 else:
                     for accept_region in accept_regions:
                         region_cover[
                             accept_region.start:accept_region.end
                         ] = accept_region.label_idx
                         labeled_regions.append(accept_region)
+                        make_process_record(
+                            process_log, [labeled_region.row_idx],
+                            f"ACCEPT-PART-{labeled_region.row_idx}"
+                        )
 
     return region_cover, labeled_regions
 
 
-def merge_regions(target_seq, regions):
+def merge_regions(target_seq, regions, process_log):
 
     start = regions[0].start
     end = regions[-1].end
-    cum_score = sum(region.score for region in regions)
-    avg_score = int(round(cum_score/len(regions), 0))
-    label = regions[0].name
-    orient = "+" if regions[0].orient > 0 else "-"
-    row_idx = regions[0].row_idx
-    return target_seq, start, end, label, avg_score, orient, row_idx
+    anchor_score = 0
+    anchor_size = 0
+    anchor_label = None
+    anchor_orient = None
+    anchor_index = None
+    all_indices = []
+    for region in regions:
+        if region.score >= anchor_score and region.size > anchor_size:
+            anchor_score = region.score
+            anchor_label = region.name
+            anchor_orient = "+" if region.orient > 0 else "-"
+            anchor_index = region.row_idx
+        all_indices.append(region.row_idx)
+
+    assert anchor_label is not None
+    make_process_record(
+        process_log, [anchor_index],
+        f"USE-ANCHOR-{anchor_index}",
+        overwrite=True
+    )
+    other_indices = sorted(set(all_indices) - set([anchor_index]))
+    if other_indices:
+        make_process_record(
+            process_log, other_indices,
+            f"MERGE-ANCHOR-{anchor_index}",
+            overwrite=True
+        )
+
+    return target_seq, start, end, anchor_label, anchor_score, anchor_orient, anchor_index
 
 
-def produce_region_annotation(target_seq, region_cover, labeled_regions):
+def produce_region_annotation(target_seq, region_cover, labeled_regions, process_log):
 
     masked_regions = msk.masked_not_equal(region_cover, 0)
     # all _covered_ regions are now masked
@@ -519,13 +569,13 @@ def produce_region_annotation(target_seq, region_cover, labeled_regions):
                 active.append(region)
                 continue
         sequence_regions.append(
-            merge_regions(target_seq, active)
+            merge_regions(target_seq, active, process_log)
         )
         active = [region]
 
     if active:
         sequence_regions.append(
-            merge_regions(target_seq, active)
+            merge_regions(target_seq, active, process_log)
         )
 
     return sequence_regions
@@ -571,7 +621,6 @@ def sanity_check_sequence_names(alignments, labels, args):
 def main():
 
     process_log = col.OrderedDict()
-    region_scores = dict()
 
     args = parse_command_line()
 
@@ -590,15 +639,15 @@ def main():
 
         out_regions = []
         for query_seq in paf["query_name"].unique():
-            if query_seq != "chrY_HG01433-J1_DACBCF94":
-                continue
 
             region_cover, labeled_regions = find_region_cover(
                 paf, query_seq, labels, generic_label_lookup,
-                args.min_shrinking_fraction,
-                region_scores, process_log
+                args.min_shrinking_fraction, process_log
             )
-            sequence_regions = produce_region_annotation(query_seq, region_cover, labeled_regions)
+            sequence_regions = produce_region_annotation(
+                query_seq, region_cover, labeled_regions,
+                process_log
+            )
             out_regions.extend(sequence_regions)
 
         out_regions = pd.DataFrame.from_records(
@@ -608,8 +657,6 @@ def main():
         out_regions["anchor_row"] = out_regions["anchor_row"].fillna(0, inplace=False)
         out_regions["anchor_row"] = out_regions["anchor_row"].astype(int)
         out_regions.sort_values(["#chrom", "start", "end"], inplace=True)
-        print(out_regions.head(50))
-        raise
 
     args.out_regions.parent.mkdir(exist_ok=True, parents=True)
     out_regions.to_csv(args.out_regions, sep="\t", header=True, index=False)
