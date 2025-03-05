@@ -209,7 +209,7 @@ def parse_command_line():
 
     parser.add_argument(
         "--target-labels", "--region-labels",
-        "-label-bed", "-l",
+        "--label-bed", "-l",
         type=lambda fp: pl.Path(fp).resolve(strict=True),
         dest="region_labels",
         required=True
