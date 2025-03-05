@@ -161,7 +161,7 @@ rule create_annotation_labeled_ref:
         tmp_bed = temp(
             DIR_PROC.joinpath(
                 "10-annotate", "labeled_ref", "annotation",
-                "{sample}.{path_id}.{region_db}.labeled-ref.bed"
+                "{sample}.{path_id}.{labelref}.labeled-ref.bed"
         )),
         bed = DIR_RES.joinpath(
             "annotations", "regions", "minimap",
