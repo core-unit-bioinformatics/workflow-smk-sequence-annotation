@@ -64,9 +64,15 @@ rule create_annotation_region_db:
     input:
         norm_paf = rules.normalize_paf_align_region_db.output.tsv,
     output:
-        bedlike = DIR_PROC.joinpath(
-            "10-annotate", "region_db", "annotation",
-            "{sample}.{path_id}.{region_db}.regiondb-labeled.bed"
+        tmp_bed = temp(
+            DIR_PROC.joinpath(
+                "10-annotate", "region_db", "annotation",
+                "{sample}.{path_id}.{region_db}.regiondb-labeled.bed"
+        )),
+        bed = DIR_RES.joinpath(
+            "annotations", "regions", "minimap",
+            "{sample}",
+            "{sample}.{path_id}.{region_db}.mm2-region-db.bed.gz"
         )
     conda:
         DIR_ENVS.joinpath("biotools", "align_tools.yaml")
@@ -75,13 +81,17 @@ rule create_annotation_region_db:
     params:
         script=find_script("create_region_set.py")
     shell:
-        "{params.script} --input {input.norm_paf} --output {output.bedlike} --debug-out"
+        "{params.script} --input {input.norm_paf} --output {output.tmp_bed} --debug-out"
+            " && "
+        "bgzip -c {output.tmp_bed} > {output.bed}"
+            " && "
+        "tabix -p bed {output.bed}"
 
 
 rule run_all_minimap_region_db:
     input:
         tsv = expand(
-            rules.create_annotation_region_db.output.bedlike,
+            rules.create_annotation_region_db.output.bed,
             match_sample_path_id,
             sample=SAMPLES,
             path_id=PATH_IDS,
@@ -141,10 +151,42 @@ rule normalize_paf_align_labeled_ref:
         "{params.script} --input {input.paf} --output {output.tsv}"
 
 
+rule create_annotation_labeled_ref:
+    input:
+        norm_paf = rules.normalize_paf_align_labeled_ref.output.tsv,
+        labels = lambda wildcards: DIR_GLOBAL_REF.joinpath(
+            MINIMAP_LABELED_REFERENCES[wildcards.labelref]["labels"]
+        )
+    output:
+        tmp_bed = temp(
+            DIR_PROC.joinpath(
+                "10-annotate", "labeled_ref", "annotation",
+                "{sample}.{path_id}.{region_db}.labeled-ref.bed"
+        )),
+        bed = DIR_RES.joinpath(
+            "annotations", "regions", "minimap",
+            "{sample}",
+            "{sample}.{path_id}.{labelref}.mm2-label-ref.bed.gz"
+        )
+    conda:
+        DIR_ENVS.joinpath("biotools", "align_tools.yaml")
+    resources:
+        mem_mb=lambda wildcards, attempt: 2048 * attempt
+    params:
+        script=find_script("transfer_region_labels")
+    shell:
+        "{params.script} --input {input.norm_paf} --label-bed {input.labels} "
+        "--output {output.tmp_bed} --debug-out"
+            " && "
+        "bgzip -c {output.tmp_bed} > {output.bed}"
+            " && "
+        "tabix -p bed {output.bed}"
+
+
 rule run_all_minimap_labeled_ref:
     input:
         tsv = expand(
-            rules.normalize_paf_align_labeled_ref.output.tsv,
+            rules.create_annotation_labeled_ref.output.bed,
             match_sample_path_id,
             sample=SAMPLES,
             path_id=PATH_IDS,
