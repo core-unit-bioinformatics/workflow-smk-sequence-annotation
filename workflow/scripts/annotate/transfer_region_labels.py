@@ -43,7 +43,7 @@ class CIGARwalker:
 
     def __init__(self, tstart, tend, qstart, qend, orientation, cigar, row_idx):
 
-        self.cigar_ops = re.compile("[0-9]+(\=|X|D|I|M)")
+        self.cigar_ops = re.compile("[0-9]+(\\=|X|D|I|M)")
         self.cigar = cigar
         self.move_ops = {
             "=": CIGARstep.BOTH,
