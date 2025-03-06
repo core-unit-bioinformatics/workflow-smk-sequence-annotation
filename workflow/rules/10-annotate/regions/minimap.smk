@@ -171,7 +171,7 @@ rule create_annotation_labeled_ref:
     conda:
         DIR_ENVS.joinpath("biotools", "align_tools.yaml")
     resources:
-        mem_mb=lambda wildcards, attempt: 2048 * attempt
+        mem_mb=lambda wildcards, attempt: 4096 * attempt
     params:
         script=find_script("transfer_region_labels")
     shell:
