@@ -26,7 +26,12 @@ if RUN_MINIMAP_REGIONDB:
             )
         )
     )
-    _MULTI_ANNOTATION_LABELS.extend(sorted(MINIMAP_REGION_DB_NAMES))
+    _MULTI_ANNOTATION_LABELS.extend(
+        [
+            label + ".regiondb" for label in
+            sorted(MINIMAP_REGION_DB_NAMES)
+        ]
+    )
 
 
 if RUN_MINIMAP_LABELREF:
@@ -39,7 +44,16 @@ if RUN_MINIMAP_LABELREF:
             )
         )
     )
-    _MULTI_ANNOTATION_LABELS.extend(sorted(MINIMAP_LABELED_REFERENCE_NAMES))
+    _MULTI_ANNOTATION_LABELS.extend(
+        [
+            label + ".labelref" for label in
+            sorted(MINIMAP_LABELED_REFERENCE_NAMES)
+        ]
+    )
+
+
+if _MULTI_ANNOTATION_LABELS:
+    assert len(set(_MULTI_ANNOTATION_LABELS)) == len(_MULTI_ANNOTATION_LABELS)
 
 
 rule bedtools_annotation_multi_intersect:
@@ -57,7 +71,7 @@ rule bedtools_annotation_multi_intersect:
     params:
         header=" ".join(_MULTI_ANNOTATION_LABELS)
     shell:
-        "bedtools multiinter -names {params.header} -i {input.bed_files} | gzip > {output.table}"
+        "bedtools multiinter -header -names {params.header} -i {input.bed_files} | gzip > {output.table}"
 
 
 rule run_all_combine_annotations:
