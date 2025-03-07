@@ -102,6 +102,43 @@ rule compress_raw_hmmer_output:
         "gzip -c {input.text} > {output.text}"
 
 
+rule subset_hmmer_high_quality_hits:
+    input:
+        bedlike = rules.normalize_hmmer_output_table.output.bed
+    output:
+        bedlike = temp(
+            DIR_RES.joinpath(
+                "annotations", "motifs", "hmmer", "tmp",
+                "{sample}.{path_id}.{motif}.hmmer-tblout-norm.hiq.bed"
+            )
+        )
+    run:
+        import pandas as pd
+
+        df = pd.read_csv(input.bedlike, sep="\t", header=0)
+        if "high_quality_hit" in df.columns:
+            df = df.loc[df["high_quality_hit"] > 0, :].copy()
+        df.to_csv(output.bedlike, sep="\t", header=0, index=False)
+    # END OF RUN BLOCK
+
+
+rule compress_subset_hmmer_output:
+    input:
+        bedlike = rules.subset_hmmer_high_quality_hits.output.bedlike
+    output:
+        bed = DIR_RES.joinpath(
+            "annotations", "motifs", "hmmer",
+            "{sample}",
+            "{sample}.{path_id}.{motif}.hmmer-tblout-norm.hiq.bed.gz"
+        )
+    conda:
+        DIR_ENVS.joinpath("biotools", "align_tools.yaml")
+    shell:
+        "bgzip -c {input.bedlike} > {output.bedlike}"
+            " && "
+        "tabix -p bed {output.bed}"
+
+
 rule run_all_hmmer_motif_searches:
     input:
         tables = expand(
@@ -120,6 +157,13 @@ rule run_all_hmmer_motif_searches:
         ),
         raw_out = expand(
             rules.compress_raw_hmmer_output.output.text,
+            match_sample_path_id,
+            sample=SAMPLES,
+            path_id=PATH_IDS,
+            motif=HMMER_MOTIF_NAMES
+        ),
+        hiq = expand(
+            rules.compress_subset_hmmer_output.output.bed,
             match_sample_path_id,
             sample=SAMPLES,
             path_id=PATH_IDS,
