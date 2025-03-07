@@ -87,7 +87,7 @@ class HmmerTable:
 
         na_fields = [
             idx for idx, field in enumerate(dcl.fields(HmmerTableRow))
-            if field.type is str and field.name not in ["target_name", "strand", "evalue"]
+            if field.type is str and field.name not in ["target_name", "query_name", "strand", "evalue"]
         ]
 
         recognized_header_fields = set()
