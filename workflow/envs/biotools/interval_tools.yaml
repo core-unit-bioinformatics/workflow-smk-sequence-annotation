@@ -1,0 +1,10 @@
+name: interval_tools
+dependencies:
+  - python=3.13.*
+  - intervaltree=3.1.*
+  - samtools=1.21
+  - bedtools=2.31.*
+  - pandas=2.2.*
+  - pytables=3.10.*
+  - hdf5=1.14.*
+  - pyarrow=19.0.*

@@ -22,3 +22,5 @@ include: "10-annotate/motifs/hmmer.smk"
 include: "10-annotate/repeats/pyutils.smk"
 include: "10-annotate/repeats/repeatmasker.smk"
 include: "10-annotate/regions/minimap.smk"
+
+include: "20-combine/annotate.smk"
