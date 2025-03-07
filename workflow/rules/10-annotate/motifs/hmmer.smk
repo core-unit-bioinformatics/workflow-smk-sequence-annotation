@@ -118,7 +118,7 @@ rule subset_hmmer_high_quality_hits:
         df = pd.read_csv(input.bedlike, sep="\t", header=0)
         if "high_quality_hit" in df.columns:
             df = df.loc[df["high_quality_hit"] > 0, :].copy()
-        df.to_csv(output.bedlike, sep="\t", header=0, index=False)
+        df.to_csv(output.bedlike, sep="\t", header=True, index=False)
     # END OF RUN BLOCK
 
 
