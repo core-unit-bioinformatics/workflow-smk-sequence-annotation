@@ -118,6 +118,9 @@ class CIGARwalker:
                 target_over_query_ratio = self.check_balanced_alignment(count_ops)
                 # just shorthand...
                 balance = target_over_query_ratio
+                # TODO: unclear if that ever happens
+                # case: no advance in target, only in query
+                assert balance > 0
                 while 1:
                     if iter_t < current_interval.end:
                         count_ops = col.Counter()
@@ -193,7 +196,8 @@ class CIGARwalker:
     def check_balanced_alignment(self, count_ops):
 
         target = count_ops[CIGARstep.TARGET] + count_ops[CIGARstep.BOTH]
-        query = count_ops[CIGARstep.QUERY] + count_ops[CIGARstep.BOTH]
+        # avoid div by zero error
+        query = max(1, count_ops[CIGARstep.QUERY] + count_ops[CIGARstep.BOTH])
         return target/query
 
 
