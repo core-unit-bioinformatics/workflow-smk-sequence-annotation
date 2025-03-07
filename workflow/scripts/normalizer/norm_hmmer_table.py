@@ -195,7 +195,7 @@ class HmmerTable:
 
         return df
 
-    def to_bedlike(self):
+    def to_bedlike(self, score_threshold=None):
         """The coordinate transformation below assumes the following
         base enumeration/coordinate reporting by HMMER:
 
@@ -209,7 +209,7 @@ class HmmerTable:
 
         """
 
-        df = self.to_dataframe(keep_hmmer_format=False)
+        df = self.to_dataframe(keep_hmmer_format=False, score_threshold=score_threshold)
 
         columns_to_keep = [
             "target_name", "target_hit_start", "target_hit_end",
@@ -326,7 +326,7 @@ def main():
         df.to_csv(table, sep="\t", header=True, index=False)
 
     if args.output_bedlike is not None:
-        bedlike = hmmer_table.to_bedlike()
+        bedlike = hmmer_table.to_bedlike(args.score_threshold)
         args.output_bedlike.parent.mkdir(exist_ok=True, parents=True)
         with xopen.xopen(args.output_bedlike, "w") as bedfile:
             _ = bedfile.write("#")
