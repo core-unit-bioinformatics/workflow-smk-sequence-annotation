@@ -111,6 +111,13 @@ rule run_all_hmmer_motif_searches:
             path_id=PATH_IDS,
             motif=HMMER_MOTIF_NAMES
         ),
+        bedlike = expand(
+            rules.normalize_hmmer_output_table.output.bed,
+            match_sample_path_id,
+            sample=SAMPLES,
+            path_id=PATH_IDS,
+            motif=HMMER_MOTIF_NAMES
+        )
         raw_out = expand(
             rules.compress_raw_hmmer_output.output.text,
             match_sample_path_id,
