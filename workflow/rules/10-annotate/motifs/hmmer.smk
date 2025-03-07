@@ -134,7 +134,7 @@ rule compress_subset_hmmer_output:
     conda:
         DIR_ENVS.joinpath("biotools", "align_tools.yaml")
     shell:
-        "bgzip -c {input.bedlike} > {output.bedlike}"
+        "bgzip -c {input.bedlike} > {output.bed}"
             " && "
         "tabix -p bed {output.bed}"
 
