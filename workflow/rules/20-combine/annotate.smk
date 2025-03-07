@@ -143,7 +143,7 @@ rule relabel_multi_annotation_table:
             "{sample}.{path_id}.relabeled.bed.gz"
         )
     conda:
-        DIR_ENVS.joinpath("scripts", "pyseq")
+        DIR_ENVS.joinpath("scripts", "pyseq.yaml")
     params:
         script=find_script("add_annot_labels")
     shell:
