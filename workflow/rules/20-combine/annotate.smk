@@ -46,7 +46,7 @@ if RUN_MINIMAP_REGIONDB and RUN_MINIMAP_LABELREF:
     )
     _MULTI_ANNOTATION_LABELS.extend(_disjoin_labelref)
 
-elif RUN_MINIMAP_REGIONDB
+elif RUN_MINIMAP_REGIONDB:
     _MULTI_ANNOTATION_INPUT.extend(
         sorted(
             expand(
