@@ -113,12 +113,12 @@ rule dump_annotation_label_listings:
         labels = _MULTI_ANNOTATION_LABELS
     run:
         n_files = 0
-        with open(output.lst_files) as listing:
+        with open(output.lst_files, "w") as listing:
             for filepath in input.bed_files:
                 _ = listing.write(f"{filepath}\n")
                 n_files += 1
         n_labels = 0
-        with open(output.lst_labels) as listing:
+        with open(output.lst_labels, "w") as listing:
             for label in params.labels:
                 _ = listing.write(f"{label}\n")
                 n_labels += 1
