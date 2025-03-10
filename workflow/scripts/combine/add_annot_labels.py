@@ -72,6 +72,9 @@ def check_header(filepath):
             skip_rows = 0
         except ValueError:
             skip_rows = 1
+        except IndexError:
+            # this should imply: empty input file
+            skip_rows = 0
     return skip_rows
 
 
@@ -83,6 +86,9 @@ def load_annotation(filepath, label, drop_lowconf):
         filepath, sep="\t", header=None, skiprows=skip_rows,
         usecols=[0,1,2,3,4,5], names=["chrom", "start", "end", "name", "score", "strand"]
     )
+
+    if df.empty:
+        return dict()
 
     if len(drop_lowconf) > 0:
         label_bad = lambda label: any(lowconf in label for lowconf in drop_lowconf)
