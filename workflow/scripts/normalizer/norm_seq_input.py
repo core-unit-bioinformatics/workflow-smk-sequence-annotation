@@ -97,7 +97,7 @@ def exec_sys_call(call):
 def convert_file(input_file, output_file):
 
     output_file.parent.mkdir(exist_ok=True, parents=True)
-    cmd = ["seqtk", "-A", "-C", "-S", input_file, ">", output_file]
+    cmd = ["seqtk", "seq", "-A", "-C", "-S", input_file, ">", output_file]
     exec_sys_call(cmd)
     return
 
