@@ -85,6 +85,22 @@ rule normalize_repeatmasker_output_table:
         "tabix -p bed {output.bed}"
 
 
+rule compress_raw_repeatmasker_output:
+    input:
+        table = rules.repeatmasker_default_run.output.table
+    output:
+        targz = DIR_RES.joinpath(
+            "annotations", "repeats", "repeatmasker",
+            "{sample}", "raw", "{sample}.{path_id}.repeatmasker-out.tar.gz"
+        )
+    params:
+        change_dir=DIR_PROC.joinpath(
+            "10-annotate", "repeats", "repeatmasker"
+        ),
+    shell:
+        "tar -czf {output.targz} -C {params.change_dir} {wildcards.sample}.repeatmasker.wd/"
+
+
 rule run_all_repeatmasker_default:
     """Why the shell call?
     Failed RepeatMasker runs do not clean up after themselves
@@ -100,6 +116,12 @@ rule run_all_repeatmasker_default:
     input:
         tables = expand(
             rules.normalize_repeatmasker_output_table.output.tsv,
+            match_sample_path_id,
+            sample=SAMPLES,
+            path_id=PATH_IDS
+        ),
+        tar = expand(
+            rules.compress_raw_repeatmasker_output.output.targz,
             match_sample_path_id,
             sample=SAMPLES,
             path_id=PATH_IDS
