@@ -1,0 +1,12 @@
+name: pyseq
+dependencies:
+  - python=3.12.*
+  - pyranges=0.1.*
+  - xopen=2.0.*
+  - pandas=2.2.*
+  - numpy=2.2.*
+  - filetype=1.2.*
+  - samtools=1.21
+  - pigz=2.8
+  - pbzip2=1.1.*
+  - bzip2=1.0.*
