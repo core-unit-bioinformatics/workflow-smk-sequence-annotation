@@ -37,7 +37,7 @@ rule minimap_align_region_db:
         mem_mb=lambda wildcards, attempt: 24576 * attempt,
         time_hrs=lambda wildcards, attempt: attempt * attempt
     shell:
-        "minimap2 -x asm20 -t {threads} -N 5 -p 0.95 -L -c --eqx --MD "
+        "minimap2 -x asm20 -t {threads} -N 100 -p 0.9 -L -c --eqx --MD "
         "{input.fasta} {input.region_db} | gzip > {output.paf}"
 
 
@@ -45,10 +45,10 @@ rule normalize_paf_align_region_db:
     input:
         paf = rules.minimap_align_region_db.output.paf,
     output:
-        tsv = DIR_PROC.joinpath(
-            "10-annotate", "region_db", "minimap",
-            "{sample}.minimap.wd",
-            "{sample}.{path_id}.{region_db}.region-db-aln.norm-paf.tsv.gz"
+        tsv = DIR_RES.joinpath(
+            "annotations", "regions", "minimap",
+            "{sample}",
+            "{sample}.{path_id}.{region_db}.mm2-region-db-aln.norm-paf.tsv.gz"
         )
     conda:
         DIR_ENVS.joinpath("biotools", "align_tools.yaml")
@@ -60,7 +60,7 @@ rule normalize_paf_align_region_db:
         "{params.script} --input {input.paf} --output {output.tsv}"
 
 
-rule create_annotation_region_db:
+rule dump_region_db_bed:
     input:
         norm_paf = rules.normalize_paf_align_region_db.output.tsv,
     output:
@@ -75,13 +75,13 @@ rule create_annotation_region_db:
             "{sample}.{path_id}.{region_db}.mm2-region-db.bed.gz"
         )
     conda:
-        DIR_ENVS.joinpath("biotools", "align_tools.yaml")
+        DIR_ENVS.joinpath("scripts", "pyregions.yaml")
     resources:
         mem_mb=lambda wildcards, attempt: 2048 * attempt
     params:
-        script=find_script("create_region_set.py")
+        script=find_script("dump_region_db_bed")
     shell:
-        "{params.script} --input {input.norm_paf} --output {output.tmp_bed} --debug-out"
+        "{params.script} --input-paf {input.norm_paf} --output-bed {output.tmp_bed}"
             " && "
         "bgzip -c {output.tmp_bed} > {output.bed}"
             " && "
@@ -91,7 +91,7 @@ rule create_annotation_region_db:
 rule run_all_minimap_region_db:
     input:
         tsv = expand(
-            rules.create_annotation_region_db.output.bed,
+            rules.dump_region_db_bed.output.bed,
             match_sample_path_id,
             sample=SAMPLES,
             path_id=PATH_IDS,
