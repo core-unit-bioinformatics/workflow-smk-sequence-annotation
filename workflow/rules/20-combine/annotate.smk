@@ -27,7 +27,7 @@ if RUN_MINIMAP_REGIONDB and RUN_MINIMAP_LABELREF:
     _MULTI_ANNOTATION_INPUT.extend(
         sorted(
             expand(
-                rules.create_annotation_region_db.output.bed,
+                rules.dump_region_db_bed.output.bed,
                 region_db=MINIMAP_REGION_DB_NAMES,
                 allow_missing=True
             )
@@ -50,7 +50,7 @@ elif RUN_MINIMAP_REGIONDB:
     _MULTI_ANNOTATION_INPUT.extend(
         sorted(
             expand(
-                rules.create_annotation_region_db.output.bed,
+                rules.dump_region_db_bed.output.bed,
                 region_db=MINIMAP_REGION_DB_NAMES,
                 allow_missing=True
             )
