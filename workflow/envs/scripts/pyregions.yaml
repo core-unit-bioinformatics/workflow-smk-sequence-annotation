@@ -1,4 +1,4 @@
-name: pyseq
+name: pyregions
 dependencies:
   - python=3.12.*
   - pyranges=0.1.*
