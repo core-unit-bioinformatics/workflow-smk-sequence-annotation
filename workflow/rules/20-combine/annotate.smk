@@ -38,7 +38,7 @@ if RUN_MINIMAP_REGIONDB and RUN_MINIMAP_LABELREF:
     _MULTI_ANNOTATION_INPUT.extend(
         sorted(
             expand(
-                rules.create_annotation_labeled_ref.output.bed,
+                rules.dump_labeled_ref_bed.output.bed,
                 labelref=MINIMAP_LABELED_REFERENCE_NAMES,
                 allow_missing=True
             )
@@ -62,7 +62,7 @@ elif RUN_MINIMAP_LABELREF:
     _MULTI_ANNOTATION_INPUT.extend(
         sorted(
             expand(
-                rules.create_annotation_labeled_ref.output.bed,
+                rules.dump_labeled_ref_bed.output.bed,
                 labelref=MINIMAP_LABELED_REFERENCE_NAMES,
                 allow_missing=True
             )
