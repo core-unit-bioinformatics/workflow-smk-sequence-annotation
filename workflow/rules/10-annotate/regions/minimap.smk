@@ -186,7 +186,7 @@ rule dump_labeled_ref_bed:
 rule run_all_minimap_labeled_ref:
     input:
         tsv = expand(
-            rules.create_annotation_labeled_ref.output.bed,
+            rules.dump_labeled_ref_bed.output.bed,
             match_sample_path_id,
             sample=SAMPLES,
             path_id=PATH_IDS,
