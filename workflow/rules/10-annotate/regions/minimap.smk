@@ -151,7 +151,7 @@ rule normalize_paf_align_labeled_ref:
         "{params.script} --input {input.paf} --output {output.tsv}"
 
 
-rule create_annotation_labeled_ref:
+rule dump_labeled_ref_bed:
     input:
         norm_paf = rules.normalize_paf_align_labeled_ref.output.tsv,
         labels = lambda wildcards: DIR_GLOBAL_REF.joinpath(
@@ -169,14 +169,14 @@ rule create_annotation_labeled_ref:
             "{sample}.{path_id}.{labelref}.mm2-label-ref.bed.gz"
         )
     conda:
-        DIR_ENVS.joinpath("biotools", "align_tools.yaml")
+        DIR_ENVS.joinpath("scripts", "pyregions.yaml")
     resources:
         mem_mb=lambda wildcards, attempt: 4096 * attempt
     params:
-        script=find_script("transfer_region_labels")
+        script=find_script("dump_labeled_ref_bed")
     shell:
         "{params.script} --input {input.norm_paf} --label-bed {input.labels} "
-        "--output {output.tmp_bed} --debug-out"
+        "--output {output.tmp_bed}"
             " && "
         "bgzip -c {output.tmp_bed} > {output.bed}"
             " && "
