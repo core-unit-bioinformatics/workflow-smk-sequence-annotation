@@ -175,8 +175,8 @@ rule dump_labeled_ref_bed:
     params:
         script=find_script("dump_labeled_ref_bed")
     shell:
-        "{params.script} --input {input.norm_paf} --label-bed {input.labels} "
-        "--output {output.tmp_bed}"
+        "{params.script} --input-paf {input.norm_paf} --input-bed {input.labels} "
+        "--output-bed {output.tmp_bed}"
             " && "
         "bgzip -c {output.tmp_bed} > {output.bed}"
             " && "
