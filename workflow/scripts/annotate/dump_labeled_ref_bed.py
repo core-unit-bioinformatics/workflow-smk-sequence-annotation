@@ -41,8 +41,8 @@ class CIGARwalker:
         "last_start_cigar", "last_start_target", "last_start_query"
     )
 
-    def __init__(self, tstart, tend, qstart, qend, orientation, cigar, row_idx):
-
+    def __init__(self, tstart, tend, qstart, qend, orientation, cigar, row_idx, debug=False):
+        raise RuntimeError
         self.cigar_ops = re.compile(CIGAR_OPS_REGEXP)
         self.cigar = cigar
         self.move_ops = {
@@ -72,6 +72,11 @@ class CIGARwalker:
         self.last_start_cigar = 0
         self.last_start_target = self.tstart
         self.last_start_query = self.qstart
+
+        if debug:
+            print("CWALKER INIT")
+            print(self.tstart, self.tend)
+            print(self.qstart, self.qend)
 
         return None
 
@@ -145,7 +150,7 @@ class CIGARwalker:
 
         return lifted_start, lifted_end, aln_block_ident, aln_block_length, max_ident_block
 
-    def find_range(self, find_start, find_end):
+    def find_range(self, find_start, find_end, debug=False):
         """This function finds the range between
         start and end in target coordinates and
         returns the equivalent range in query
@@ -173,7 +178,18 @@ class CIGARwalker:
         stepping_over = False
         offset_in = 0
         offset_out = 0
+        if debug:
+            print("find range: ", find_start, find_end)
+            print("Last start T: ", self.last_start_target)
+            print("Last start Q: ", self.last_start_query)
+
         for cigar_pos, step, move in self.walk_cigar():
+            stepping_in = False
+            stepping_out = False
+            stepping_over = False
+            if debug:
+                print("IT: ", iter_t, " - IQ: ", iter_q)
+                print(step, move)
             # lookahead - are we stepping over the find range?
             if iter_t + step > find_end and iter_t < find_start:
                 # stepping over the find range in one step;
@@ -181,7 +197,7 @@ class CIGARwalker:
                 # of the function
                 stepping_over = True
             # lookahead - are we stepping into the find range?
-            elif iter_t + step >= find_start and iter_t <= find_start:
+            if iter_t + step >= find_start and iter_t <= find_start and not stepping_over:
                 stepping_in = True
                 offset_in = find_start - iter_t
                 assert offset_in >= 0
@@ -193,14 +209,10 @@ class CIGARwalker:
                 self.last_start_query = iter_q
 
             # lookahead - are we stepping out of the find range?
-            elif iter_t + step >= find_end:
+            if iter_t + step >= find_end and not stepping_over:
                 stepping_out = True
                 offset_out = iter_t + step - find_end
                 assert offset_out >= 0
-            else:
-                stepping_in = False
-                stepping_out = False
-                stepping_over = False
 
             # make the step
             if move in [CIGARstep.IDENT, CIGARstep.BOTH]:
@@ -211,13 +223,26 @@ class CIGARwalker:
             else:
                 iter_q += step
 
+            if debug:
+                print("Stepping in: ", stepping_in)
+                print("Stepping out: ", stepping_out)
+                print("Stepping over: ", stepping_over)
+                print("Offset in: ", offset_in)
+                print("Offset out: ", offset_out)
+                print("IT: ", iter_t, " - IQ: ", iter_q)
+
             if self.orientation < 0:
                 assert iter_q < 0 or stepping_out or stepping_over, f"{iter_q} / {stepping_out} / {stepping_over}"
 
             if stepping_in:
                 # note for lifted start: step size has already been
                 # added to iter_q above, just correct for the offset
-                lifted_start = iter_q - (offset_in * self.orientation)
+                if self.orientation < 0:
+                    lifted_start = iter_q - offset_out
+                else:
+                    lifted_start = iter_q + offset_in
+                if debug:
+                    print("stepping in: ", iter_t, iter_q, lifted_start)
                 aln_block_length += (step - offset_in)
                 if move in [CIGARstep.IDENT, CIGARstep.BOTH]:
                     aln_block_ident += (step - offset_in)
@@ -244,7 +269,12 @@ class CIGARwalker:
                 if self.orientation > 0 or (self.orientation < 0 and lifted_end > 0):
                     lifted_end -= offset_out
                 else:
-                    lifted_end += offset_out
+                    lifted_end += offset_in
+                if stepping_in:
+                    # stepping in and out in the same step can happen for small regions
+                    lifted_end -= step
+                if debug:
+                    print("stepping out: ", iter_t, iter_q, "LS ", lifted_start, "LE ", lifted_end)
                 break
 
             elif stepping_over:
@@ -309,6 +339,9 @@ class CIGARwalker:
         assert lifted_start is not None, f"{iter_t} - {find_start}:{find_end} / {stepping_in}"
         assert lifted_end is not None, f"{iter_t} - {find_start}:{find_end} / {stepping_out} / {stepping_over}"
 
+        if debug:
+            print("LIFTED: ", lifted_start, lifted_end)
+
         if self.orientation < 0 and not deleted_region:
             # the following is a workaround for situations where (reverse) alignments
             # start at the beginning of the query sequence, which (rarely) leads to lifted
@@ -370,8 +403,48 @@ def parse_command_line():
     return args
 
 
-def read_region_label_file(file_path):
+def add_cigar_statistics(alignments):
 
+    match_id_ops = re.compile(r"([0-9]+\=)")
+
+    cigar_stats = []
+    for row in alignments.itertuples():
+        cigar = row.cg_cigar
+        id_ops = match_id_ops.findall(cigar)
+        if not id_ops:
+            raise
+        id_ops = [int(op[:-1]) for op in id_ops]
+        total_id = sum(id_ops)
+        longest_id_block = max(id_ops)
+        region_length = row.query_end - row.query_start
+        pct_matching = round(region_length / total_id * 100, 2)
+        cigar_stats.append(
+            (pct_matching, total_id, longest_id_block)
+        )
+    cigar_stats = pd.DataFrame(
+        cigar_stats,
+        columns=["pct_matching", "total_id", "longest_id_block"],
+        index=alignments.index
+    )
+    alignments = alignments.join(cigar_stats)
+
+    alignments["rank_matching"] = alignments["pct_matching"].rank(
+            method="average", ascending=True, pct=True
+        )
+    alignments["rank_block"] = alignments["longest_id_block"].rank(
+        method="average", ascending=True, pct=True
+    )
+
+    # this will be used to replace the score column in the BED output
+    alignments["mean_rank"] = ((
+        alignments["rank_matching"] + alignments["rank_block"]
+    ) / 2 * 1000).round(0).astype(int)
+
+    return alignments
+
+
+def read_region_label_file(file_path):
+    raise RuntimeError
     regions = pd.read_csv(file_path, sep="\t", header=0)
     # need at least: seq - start - end - name
     assert len(regions.columns) > 3
@@ -382,7 +455,7 @@ def read_region_label_file(file_path):
 
 
 def check_sequence_compatibility(alignments, labeled_regions):
-
+    raise RuntimeError
     n_seq_aln = alignments["target_name"].nunique()
     n_seq_regions = labeled_regions[labeled_regions.columns[0]].nunique()
 
@@ -412,13 +485,20 @@ def read_paf_alignment_file(file_path):
     must have a proper header.
     """
     alignments = pd.read_csv(file_path, sep="\t", header=0)
-    alignments.sort_values(by=["target_name", "target_start"], inplace=True)
+    alignments.sort_values(by=["query_name", "query_start"], inplace=True)
+    if not "id_name" in alignments.columns:
+        raise RuntimeError(
+            "No column 'id_name' in the PAF file. "
+            "Is this a rustybam trimmed PAF liftover file?"
+        )
+    alignments["name_is_empty"] = alignments["id_name"].apply(lambda name: pd.isnull(name))
+    alignments = alignments.loc[~alignments.name_is_empty, :].copy()
     alignments.reset_index(drop=True, inplace=True)
     return alignments
 
 
 def compute_overlaps(alignments, labeled_regions):
-
+    raise RuntimeError
     region_labels = pr.from_dict(
         {
             "Chromosome": labeled_regions.chrom,
@@ -461,7 +541,7 @@ def compute_overlaps(alignments, labeled_regions):
 
 
 def select_best_fit_overlaps(align_label_overlaps):
-
+    raise RuntimeError
     row_select = []
     priority_matches = set()
     for row in align_label_overlaps.itertuples():
@@ -491,7 +571,7 @@ def select_best_fit_overlaps(align_label_overlaps):
 
 
 def perform_liftover(align_label_overlaps, alignments, labeled_regions, min_alignment_threshold):
-
+    raise RuntimeError
     last_alignment = None
     lifted_regions = []
     for row in align_label_overlaps.itertuples():
@@ -505,12 +585,14 @@ def perform_liftover(align_label_overlaps, alignments, labeled_regions, min_alig
                 alignment.query_end,
                 alignment.align_orient,
                 alignment.cg_cigar,
-                row.align_idx
+                row.align_idx,
             )
         # NB: this needs to check the alignment target coordinates and not the
         # start/end coordinates in the labeled region intersections, which may
         # only cover a portion of the respective alignment
-        if alignment.target_start >= row.Start_region_label and alignment.target_end <= row.End_region_label:
+        target_region_is_contained = alignment.target_start >= row.Start_region_label and alignment.target_end <= row.End_region_label
+        query_sequence_is_completely_aligned = alignment.query_end == alignment.query_length
+        if target_region_is_contained or query_sequence_is_completely_aligned:
             # special case: the alignment is smaller than the labeled region
             # and thus we can simply walk through the CIGAR string
             align_size = alignment.target_end - alignment.target_start
@@ -523,12 +605,16 @@ def perform_liftover(align_label_overlaps, alignments, labeled_regions, min_alig
             range_size = find_end - find_start
             if range_size < min_alignment_threshold:
                 continue
+
             try:
                 lifted_block = cw.find_range(find_start, find_end)
-            except AssertionError as e:
-                print(row)
-                print(alignment)
-                raise
+            except AssertionError:
+                try:
+                    _ = cw.find_range(find_start, find_end, debug=True)
+                except AssertionError:
+                    print(row)
+                    print(alignment)
+                    raise
 
         region_label = labeled_regions.at[row.region_idx, "name"]
         lifted_seq = alignment.query_name
@@ -579,16 +665,20 @@ def perform_liftover(align_label_overlaps, alignments, labeled_regions, min_alig
     return lifted_regions
 
 
-def cluster_lifted_regions(lifted_regions):
+def cluster_lifted_regions(trimmed_alignments):
+
+    trimmed_alignments["strand"] = trimmed_alignments["align_orient"].replace(
+        {1: "+", -1: "-"}
+    ).astype(str)
 
     intervals = pr.from_dict(
         {
-            "Chromosome": lifted_regions.chrom,
-            "Start": lifted_regions.start,
-            "End": lifted_regions.end,
-            "Name": lifted_regions.name,
-            "Strand": lifted_regions.strand,
-            "pd_idx": lifted_regions.index.values
+            "Chromosome": trimmed_alignments.query_name,
+            "Start": trimmed_alignments.query_start,
+            "End": trimmed_alignments.query_end,
+            "Name": trimmed_alignments.id_name,
+            "Strand": trimmed_alignments.strand,
+            "pd_idx": trimmed_alignments.index.values
         }
     )
     intervals = intervals.cluster(strand="same", by="Name")
@@ -597,28 +687,28 @@ def cluster_lifted_regions(lifted_regions):
         index=intervals.pd_idx.values,
         name="cluster_id"
     )
-    _n_rows = lifted_regions.shape[0]
+    _n_rows = trimmed_alignments.shape[0]
     # little sanity check
-    lifted_regions = lifted_regions.merge(cluster_ids, left_index=True, right_index=True)
-    assert lifted_regions.shape[0] == _n_rows
+    trimmed_alignments = trimmed_alignments.merge(cluster_ids, left_index=True, right_index=True)
+    assert trimmed_alignments.shape[0] == _n_rows
 
-    return lifted_regions
+    return trimmed_alignments
 
 
 def derive_bed_rows(lifted_regions):
 
     bed_rows = []
     for cluster_id, regions in lifted_regions.groupby("cluster_id"):
-        assert regions.chrom.nunique() == 1
-        assert regions.name.nunique() == 1
+        assert regions.query_name.nunique() == 1
+        assert regions.id_name.nunique() == 1
         assert regions.strand.nunique() == 1
 
         # collect values...
-        seq = regions.chrom.iloc[0]
-        start = regions.start.min()
-        end = regions.end.max()
+        seq = regions.query_name.iloc[0]
+        start = regions.query_start.min()
+        end = regions.query_end.max()
         assert start < end, f"{start} - {end}: {regions}"
-        name = regions.name.iloc[0]
+        name = regions.id_name.iloc[0]
         score = regions.mean_rank.max()
         assert 0 <= score <= 1000, f"{regions}"
         max_pct_matching = regions.pct_matching.max()
@@ -647,23 +737,13 @@ def main():
 
     args = parse_command_line()
 
-    labeled_regions = read_region_label_file(args.region_labels)
-
-    min_alignment_threshold = labeled_regions["size"].min() // 2
-
     alignments = read_paf_alignment_file(args.paf_alignments)
 
-    check_sequence_compatibility(alignments, labeled_regions)
+    alignments = add_cigar_statistics(alignments)
 
-    align_label_overlaps = compute_overlaps(alignments, labeled_regions)
+    clustered_lifted_regions = cluster_lifted_regions(alignments)
 
-    align_label_overlaps = select_best_fit_overlaps(align_label_overlaps)
-
-    lifted_regions = perform_liftover(align_label_overlaps, alignments, labeled_regions, min_alignment_threshold)
-
-    lifted_regions = cluster_lifted_regions(lifted_regions)
-
-    bed_rows = derive_bed_rows(lifted_regions)
+    bed_rows = derive_bed_rows(clustered_lifted_regions)
 
     with xopen.xopen(args.output, "wt") as out_bed:
         out_bed.write("#")
