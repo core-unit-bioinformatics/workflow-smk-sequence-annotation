@@ -151,6 +151,45 @@ rule normalize_paf_align_labeled_ref:
         "{params.script} --input {input.paf} --output {output.tsv}"
 
 
+rule trim_paf_align_labeled_ref:
+    input:
+        norm_paf = rules.minimap_align_labeled_reference.output.paf,
+        labels = lambda wildcards: DIR_GLOBAL_REF.joinpath(
+            MINIMAP_LABELED_REFERENCES[wildcards.labelref]["labels"]
+        )
+    output:
+        trimmed_paf = DIR_PROC.joinpath(
+            "10-annotate", "labeled_ref", "minimap",
+            "{sample}.minimap.wd",
+            "{sample}.{path_id}.{labelref}.label-ref-aln.trimmed.paf.gz"
+        )
+    conda:
+        DIR_ENVS.joinpath("biotools", "align_tools.yaml")
+    resources:
+        mem_mb=lambda wildcards, attempt: 2048 * attempt
+    shell:
+        "rustybam liftover --bed {input.labels} {input.norm_paf} | gzip > {output.trimmed_paf}"
+
+
+rule normalize_trimmed_paf_align_labeled_ref:
+    input:
+        trimmed_paf = rules.trim_paf_align_labeled_ref.output.trimmed_paf,
+    output:
+        tsv = DIR_PROC.joinpath(
+            "10-annotate", "labeled_ref", "minimap",
+            "{sample}.minimap.wd",
+            "{sample}.{path_id}.{labelref}.label-ref-aln.trimmed.norm-paf.tsv.gz"
+        )
+    conda:
+        DIR_ENVS.joinpath("biotools", "align_tools.yaml")
+    resources:
+        mem_mb=lambda wildcards, attempt: 2048 * attempt
+    params:
+        script=find_script("normalize_paf")
+    shell:
+        "{params.script} --input {input.trimmed_paf} --output {output.tsv}"
+
+
 rule dump_labeled_ref_bed:
     input:
         norm_paf = rules.normalize_paf_align_labeled_ref.output.tsv,
@@ -186,7 +225,7 @@ rule dump_labeled_ref_bed:
 rule run_all_minimap_labeled_ref:
     input:
         tsv = expand(
-            rules.dump_labeled_ref_bed.output.bed,
+            rules.normalize_trimmed_paf_align_labeled_ref.output.tsv,
             match_sample_path_id,
             sample=SAMPLES,
             path_id=PATH_IDS,
