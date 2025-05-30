@@ -166,7 +166,7 @@ rule trim_paf_align_labeled_ref:
     conda:
         DIR_ENVS.joinpath("biotools", "align_tools.yaml")
     resources:
-        mem_mb=lambda wildcards, attempt: 2048 * attempt
+        mem_mb=lambda wildcards, attempt: 4096 * attempt
     shell:
         "rustybam liftover --bed {input.labels} {input.norm_paf} | gzip > {output.trimmed_paf}"
 
