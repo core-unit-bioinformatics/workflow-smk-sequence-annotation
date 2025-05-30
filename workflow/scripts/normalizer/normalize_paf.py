@@ -103,6 +103,9 @@ def get_variable_column_definitions():
                 see changelog for v3.0.6
     'jc_jaccardsim': Jaccard similarity, see changelog v3.0.1
 
+    The tool rustybam/subcommand liftover adds also a column 'id', which
+    unfortunately has the data type string (and not float as for mashmap).
+
     Returns:
         _type_: _description_
     """
@@ -194,6 +197,34 @@ def get_paf_column_defs():
     return merged_defs
 
 
+def switch_paf_column_defs(paf_column_defs):
+    """This function is called on demand to change the column
+    definitions of the 'id' column, which is added to PAF files
+    by both mashmap and rustybam/liftover.
+    """
+
+    current_id_def = paf_column_defs["id"]
+    if current_id_def["missing"] == -1:
+        # switch to string
+        new_id_def = {
+            "_num": current_id_def["_num"],
+            "name": "id_name",
+            "dtype": str,
+            "replace": None,
+            "missing": "missing"
+        }
+    else:
+        # switch to float
+        new_id_def = {
+            "_num": current_id_def["_num"],
+            "name": "id_ani",
+            "dtype": float,
+            "replace": None,
+            "missing": -1
+        }
+    paf_column_defs["id"] = new_id_def
+    return paf_column_defs
+
 
 def read_alignment_file(file_path):
 
@@ -217,7 +248,15 @@ def read_alignment_file(file_path):
                 column_format = paf_column_defs[key]
                 if column_format["replace"] is not None:
                     value = column_format["replace"][value]
-                paf_row[column_format["name"]] = column_format["dtype"](value)
+                try:
+                    paf_row[column_format["name"]] = column_format["dtype"](value)
+                except ValueError:
+                    if key == "id":
+                        paf_column_defs = switch_paf_column_defs(paf_column_defs)
+                        column_format = paf_column_defs[key]
+                        paf_row[column_format["name"]] = column_format["dtype"](value)
+                    else:
+                        raise
 
             paf_records.append(paf_row)
             processed_lines += 1
