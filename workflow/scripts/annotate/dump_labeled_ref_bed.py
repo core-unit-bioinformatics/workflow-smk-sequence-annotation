@@ -444,7 +444,6 @@ def add_cigar_statistics(alignments):
 
 
 def read_region_label_file(file_path):
-    raise RuntimeError
     regions = pd.read_csv(file_path, sep="\t", header=0)
     # need at least: seq - start - end - name
     assert len(regions.columns) > 3
@@ -478,7 +477,7 @@ def check_sequence_compatibility(alignments, labeled_regions):
     return
 
 
-def read_paf_alignment_file(file_path):
+def read_paf_alignment_file(file_path, min_alignment_size):
     """
     Reads a normalized PAF alignment file and returns
     a DataFrame with the alignments. Hence, the PAF file
@@ -491,8 +490,14 @@ def read_paf_alignment_file(file_path):
             "No column 'id_name' in the PAF file. "
             "Is this a rustybam trimmed PAF liftover file?"
         )
+    # the following filter was a workaround for rustybam issue gh#17
+    # likely no longer necessary
     alignments["name_is_empty"] = alignments["id_name"].apply(lambda name: pd.isnull(name))
     alignments = alignments.loc[~alignments.name_is_empty, :].copy()
+    assert alignments.shape[0] > 0, "No alignments found in the PAF file."
+
+    # subset to min alignment size, which is half the size of the smallest labeled region
+    alignments = alignments.loc[alignments["align_total"] > min_alignment_size, :].copy()
     alignments.reset_index(drop=True, inplace=True)
     return alignments
 
@@ -737,7 +742,10 @@ def main():
 
     args = parse_command_line()
 
-    alignments = read_paf_alignment_file(args.paf_alignments)
+    regions = read_region_label_file(args.region_labels)
+
+    min_alignment_size = regions["size"].min() // 2
+    alignments = read_paf_alignment_file(args.paf_alignments, min_alignment_size)
 
     alignments = add_cigar_statistics(alignments)
 
