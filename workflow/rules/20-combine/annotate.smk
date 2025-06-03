@@ -78,6 +78,12 @@ if _MULTI_ANNOTATION_LABELS:
     assert len(set(_MULTI_ANNOTATION_LABELS)) == len(_MULTI_ANNOTATION_LABELS)
 
 
+### combination path 1:
+# multi-intersect all annotation files
+# the resulting table is currently 0/1 encoding
+# for overlaps; still needs-postprocessing to add labels
+
+
 rule bedtools_annotation_multi_intersect:
     input:
         bed_files = _MULTI_ANNOTATION_INPUT
@@ -154,6 +160,35 @@ rule relabel_multi_annotation_table:
         "tabix -p bed {output.bed}"
 
 
+### combination path 2: concat all labels
+# this is only useful for manually checking label
+# precision/correctness at individual loci (e.g. in IGV)
+
+
+rule concat_multi_annotation_labels:
+    input:
+        bed_files = _MULTI_ANNOTATION_INPUT
+    output:
+        tmp_bed = temp(
+            DIR_PROC.joinpath(
+                "20-combine", "annotate", "multiinter", "tmp",
+                "{sample}.{path_id}.concat-annot.bed"
+            )
+        ),
+        bed = DIR_RES.joinpath(
+            "annotations", "combined",
+            "{sample}.{path_id}.concat.bed.gz"
+        )
+    conda:
+        DIR_ENVS.joinpath("biotools", "interval_tools.yaml")
+    shell:
+        "zcat {input.bed_files} | sort -V -k1,1 -k2,3n > {output.tmp_bed}"
+            " && "
+        "bgzip -c {output.tmp_bed} > {output.bed}"
+            " && "
+        "tabix -p bed {output.bed}"
+
+
 rule run_all_combine_annotations:
     input:
         tables = expand(
@@ -164,6 +199,12 @@ rule run_all_combine_annotations:
         ),
         combined = expand(
             rules.relabel_multi_annotation_table.output.bed,
+            match_sample_path_id,
+            sample=SAMPLES,
+            path_id=PATH_IDS
+        ),
+        concat = expand(
+            rules.concat_multi_annotation_labels.output.bed,
             match_sample_path_id,
             sample=SAMPLES,
             path_id=PATH_IDS
