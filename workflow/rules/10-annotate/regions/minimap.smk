@@ -192,7 +192,7 @@ rule normalize_trimmed_paf_align_labeled_ref:
 
 rule dump_labeled_ref_bed:
     input:
-        norm_paf = rules.normalize_paf_align_labeled_ref.output.tsv,
+        norm_paf = rules.normalize_trimmed_paf_align_labeled_ref.output.tsv,
         labels = lambda wildcards: DIR_GLOBAL_REF.joinpath(
             MINIMAP_LABELED_REFERENCES[wildcards.labelref]["labels"]
         )
