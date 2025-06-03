@@ -184,7 +184,7 @@ rule concat_multi_annotation_labels:
     resources:
         mem_mb=lambda wildcards, attempt: 4096 * attempt
     shell:
-        "zcat {input.bed_files} | sort -V -k1,1 -k2,3n > {output.tmp_bed}"
+        "zcat {input.bed_files} | cut -f 1-4 |sort -V -k1,1 -k2,3n > {output.tmp_bed}"
             " && "
         "bgzip -c {output.tmp_bed} > {output.bed}"
             " && "
