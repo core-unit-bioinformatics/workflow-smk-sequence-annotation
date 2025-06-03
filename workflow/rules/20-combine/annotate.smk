@@ -181,6 +181,8 @@ rule concat_multi_annotation_labels:
         )
     conda:
         DIR_ENVS.joinpath("biotools", "interval_tools.yaml")
+    resources:
+        mem_mb=lambda wildcards, attempt: 4096 * attempt
     shell:
         "zcat {input.bed_files} | sort -V -k1,1 -k2,3n > {output.tmp_bed}"
             " && "
