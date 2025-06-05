@@ -12,6 +12,9 @@ specified in the config file.
 _MULTI_ANNOTATION_INPUT_ALL = []
 _MULTI_ANNOTATION_LABELS_ALL = []
 
+if not COMBINE_LABELS_BY_GROUP:
+    GROUP_PREFIX_WILDCARDS = ["all"]
+
 if RUN_HMMER and USE_HMMER_IN_LABEL_COMBINATION:
     # for HMMER, this only uses the high-quality hits
     _MULTI_ANNOTATION_INPUT_ALL.extend(

@@ -26,7 +26,7 @@ rule bedtools_annotation_multi_intersect:
 localrules: dump_annotation_label_listings
 rule dump_annotation_label_listings:
     input:
-        bed_files = _MULTI_ANNOTATION_INPUT
+        bed_files = select_combination_input
     output:
         lst_files = DIR_PROC.joinpath(
             "20-combine", "annotate", "multiinter",
@@ -118,17 +118,20 @@ rule run_all_combine_annotations:
             rules.bedtools_annotation_multi_intersect.output.table,
             match_sample_path_id,
             sample=SAMPLES,
-            path_id=PATH_IDS
+            path_id=PATH_IDS,
+            group_prefix=GROUP_PREFIX_WILDCARDS
         ),
         combined = expand(
             rules.relabel_multi_annotation_table.output.bed,
             match_sample_path_id,
             sample=SAMPLES,
-            path_id=PATH_IDS
+            path_id=PATH_IDS,
+            group_prefix=GROUP_PREFIX_WILDCARDS
         ),
         concat = expand(
             rules.concat_multi_annotation_labels.output.bed,
             match_sample_path_id,
             sample=SAMPLES,
-            path_id=PATH_IDS
+            path_id=PATH_IDS,
+            group_prefix=GROUP_PREFIX_WILDCARDS
         )
