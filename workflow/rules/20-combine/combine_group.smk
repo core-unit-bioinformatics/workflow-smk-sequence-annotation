@@ -58,6 +58,13 @@ if _RUN_AND_USE_MINIMAP_REGIONDB and _RUN_AND_USE_MINIMAP_LABELREF:
 
     for prefix in _ANNOTATION_LABEL_PREFIXES:
 
+        _selected_region_dbs = [
+            label for label in MINIMAP_REGION_DB_NAMES if label.startswith(prefix)
+        ]
+        _selected_label_refs = [
+            label for label in MINIMAP_LABELED_REFERENCE_NAMES if label.startswith(prefix)
+        ]
+
         if any(label in MINIMAP_REGION_DB_NAMES for label in MINIMAP_LABELED_REFERENCE_NAMES):
             _disjoin_regiondb = [
                 label + ".regiondb" for label in sorted(MINIMAP_REGION_DB_NAMES)
@@ -78,7 +85,7 @@ if _RUN_AND_USE_MINIMAP_REGIONDB and _RUN_AND_USE_MINIMAP_LABELREF:
             sorted(
                 expand(
                     rules.dump_region_db_bed.output.bed,
-                    region_db=MINIMAP_REGION_DB_NAMES,
+                    region_db=_selected_region_dbs,
                     allow_missing=True
                 )
             )
@@ -89,7 +96,7 @@ if _RUN_AND_USE_MINIMAP_REGIONDB and _RUN_AND_USE_MINIMAP_LABELREF:
             sorted(
                 expand(
                     rules.dump_labeled_ref_bed.output.bed,
-                    labelref=MINIMAP_LABELED_REFERENCE_NAMES,
+                    labelref=_selected_label_refs,
                     allow_missing=True
                 )
             )
