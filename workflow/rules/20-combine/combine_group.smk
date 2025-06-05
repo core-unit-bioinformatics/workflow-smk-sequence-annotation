@@ -1,5 +1,5 @@
 import re
-import collisions
+import collections
 import itertools as itt
 
 """
