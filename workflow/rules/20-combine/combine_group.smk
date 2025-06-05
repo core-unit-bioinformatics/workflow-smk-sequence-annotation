@@ -32,7 +32,7 @@ _ANNOTATION_LABEL_PREFIXES = sorted(_ANNOTATION_LABEL_PREFIXES)
 _MULTI_ANNOTATION_INPUT_GRP = collections.defaultdict(list)
 _MULTI_ANNOTATION_LABELS_GRP = collections.defaultdict(list)
 
-if RUN_HMMER:
+if RUN_HMMER and USE_HMMER_IN_LABEL_COMBINATION:
     # for HMMER, this only uses the high-quality hits
     # NB: HMMER motifs/labels are not grouped by prefix
     for prefix in _ANNOTATION_LABEL_PREFIXES:
@@ -48,7 +48,11 @@ if RUN_HMMER:
         _MULTI_ANNOTATION_LABELS_GRP[prefix].extend(sorted(HMMER_MOTIF_NAMES))
 
 
-if RUN_MINIMAP_REGIONDB and RUN_MINIMAP_LABELREF:
+_RUN_AND_USE_MINIMAP_REGIONDB = RUN_MINIMAP_REGIONDB and USE_REGIONDB_IN_LABEL_COMBINATION
+_RUN_AND_USE_MINIMAP_LABELREF = RUN_MINIMAP_LABELREF and USE_LABELREF_IN_LABEL_COMBINATION
+
+
+if _RUN_AND_USE_MINIMAP_REGIONDB and _RUN_AND_USE_MINIMAP_LABELREF:
 
     for prefix in _ANNOTATION_LABEL_PREFIXES:
 
@@ -90,7 +94,7 @@ if RUN_MINIMAP_REGIONDB and RUN_MINIMAP_LABELREF:
         )
         _MULTI_ANNOTATION_LABELS_GRP[prefix].extend(_disjoin_labelref)
 
-elif RUN_MINIMAP_REGIONDB:
+elif _RUN_AND_USE_MINIMAP_REGIONDB:
 
     for prefix in _ANNOTATION_LABEL_PREFIXES:
         _selected_region_dbs = [
@@ -107,7 +111,7 @@ elif RUN_MINIMAP_REGIONDB:
         )
         _MULTI_ANNOTATION_LABELS_GRP[prefix].extend(sorted(_selected_region_dbs))
 
-elif RUN_MINIMAP_LABELREF:
+elif _RUN_AND_USE_MINIMAP_LABELREF:
 
     for prefix in _ANNOTATION_LABEL_PREFIXES:
         _selected_label_refs = [

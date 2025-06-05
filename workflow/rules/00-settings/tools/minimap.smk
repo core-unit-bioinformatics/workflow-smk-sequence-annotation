@@ -23,4 +23,6 @@ if MINIMAP_LABELED_REFERENCES is not None:
         assert "sequence" in label_data
         assert "labels" in label_data
 
+USE_LABELREF_IN_LABEL_COMBINATION = config.get("use_labelref_in_label_combination", False)
+USE_REGIONDB_IN_LABEL_COMBINATION = config.get("use_regiondb_in_label_combination", False)
 COMBINE_LABELS_BY_GROUP = config.get("combine_labels_by_group", False)
