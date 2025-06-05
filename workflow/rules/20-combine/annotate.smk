@@ -1,83 +1,4 @@
 
-_MULTI_ANNOTATION_INPUT = []
-_MULTI_ANNOTATION_LABELS = []
-
-if RUN_HMMER:
-    # for HMMER, this only uses the high-quality hits
-    _MULTI_ANNOTATION_INPUT.extend(
-        sorted(
-            expand(
-                rules.compress_subset_hmmer_output.output.bed,
-                motif=HMMER_MOTIF_NAMES,
-                allow_missing=True
-            )
-        )
-    )
-    _MULTI_ANNOTATION_LABELS.extend(sorted(HMMER_MOTIF_NAMES))
-
-
-if RUN_MINIMAP_REGIONDB and RUN_MINIMAP_LABELREF:
-
-    if any(label in MINIMAP_REGION_DB_NAMES for label in MINIMAP_LABELED_REFERENCE_NAMES):
-        _disjoin_regiondb = [label + ".regiondb" for label in sorted(MINIMAP_REGION_DB_NAMES)]
-        _disjoin_labelref = [label + ".labelref" for label in sorted(MINIMAP_LABELED_REFERENCE_NAMES)]
-    else:
-        _disjoin_regiondb = sorted(MINIMAP_REGION_DB_NAMES)
-        _disjoin_labelref = sorted(MINIMAP_LABELED_REFERENCE_NAMES)
-    _MULTI_ANNOTATION_INPUT.extend(
-        sorted(
-            expand(
-                rules.dump_region_db_bed.output.bed,
-                region_db=MINIMAP_REGION_DB_NAMES,
-                allow_missing=True
-            )
-        )
-    )
-    _MULTI_ANNOTATION_LABELS.extend(_disjoin_regiondb)
-
-    _MULTI_ANNOTATION_INPUT.extend(
-        sorted(
-            expand(
-                rules.dump_labeled_ref_bed.output.bed,
-                labelref=MINIMAP_LABELED_REFERENCE_NAMES,
-                allow_missing=True
-            )
-        )
-    )
-    _MULTI_ANNOTATION_LABELS.extend(_disjoin_labelref)
-
-elif RUN_MINIMAP_REGIONDB:
-    _MULTI_ANNOTATION_INPUT.extend(
-        sorted(
-            expand(
-                rules.dump_region_db_bed.output.bed,
-                region_db=MINIMAP_REGION_DB_NAMES,
-                allow_missing=True
-            )
-        )
-    )
-    _MULTI_ANNOTATION_LABELS.extend(sorted(MINIMAP_REGION_DB_NAMES))
-
-elif RUN_MINIMAP_LABELREF:
-    _MULTI_ANNOTATION_INPUT.extend(
-        sorted(
-            expand(
-                rules.dump_labeled_ref_bed.output.bed,
-                labelref=MINIMAP_LABELED_REFERENCE_NAMES,
-                allow_missing=True
-            )
-        )
-    )
-    _MULTI_ANNOTATION_LABELS.extend(sorted(MINIMAP_LABELED_REFERENCE_NAMES))
-
-else:
-    pass
-
-
-if _MULTI_ANNOTATION_LABELS:
-    assert len(set(_MULTI_ANNOTATION_LABELS)) == len(_MULTI_ANNOTATION_LABELS)
-
-
 ### combination path 1:
 # multi-intersect all annotation files
 # the resulting table is currently 0/1 encoding
@@ -86,18 +7,18 @@ if _MULTI_ANNOTATION_LABELS:
 
 rule bedtools_annotation_multi_intersect:
     input:
-        bed_files = _MULTI_ANNOTATION_INPUT
+        bed_files = select_combination_input
     output:
         table = DIR_PROC.joinpath(
             "20-combine", "annotate", "multiinter",
-            "{sample}.{path_id}.annot-isect.tsv.gz"
+            "{sample}.{path_id}.cmb-{group_prefix}.annot-isect.tsv.gz"
         )
     conda:
         DIR_ENVS.joinpath("biotools", "interval_tools.yaml")
     resources:
         mem_mb=lambda wildcards, attempt: 2048 * attempt
     params:
-        header=" ".join(_MULTI_ANNOTATION_LABELS)
+        header=lambda wildcards: " ".join(select_combination_labels(wildcards))
     shell:
         "bedtools multiinter -header -names {params.header} -i {input.bed_files} | gzip > {output.table}"
 
@@ -109,14 +30,14 @@ rule dump_annotation_label_listings:
     output:
         lst_files = DIR_PROC.joinpath(
             "20-combine", "annotate", "multiinter",
-            "{sample}.{path_id}.annot-files.lst"
+            "{sample}.{path_id}.cmb-{group_prefix}.annot-files.lst"
         ),
         lst_labels = DIR_PROC.joinpath(
             "20-combine", "annotate", "multiinter",
-            "{sample}.{path_id}.annot-labels.lst"
+            "{sample}.{path_id}.cmb-{group_prefix}.annot-labels.lst"
         ),
     params:
-        labels = _MULTI_ANNOTATION_LABELS
+        labels = lambda wildcards: " ".join(select_combination_labels(wildcards))
     run:
         n_files = 0
         with open(output.lst_files, "w") as listing:
@@ -141,12 +62,12 @@ rule relabel_multi_annotation_table:
         tmp_bed = temp(
             DIR_PROC.joinpath(
                 "20-combine", "annotate", "multiinter", "tmp",
-                "{sample}.{path_id}.relabeled.bed"
+                "{sample}.{path_id}.cmb-{group_prefix}.relabeled.bed"
             )
         ),
         bed = DIR_RES.joinpath(
             "annotations", "combined",
-            "{sample}.{path_id}.relabeled.bed.gz"
+            "{sample}.{path_id}.cmb-{group_prefix}.relabeled.bed.gz"
         )
     conda:
         DIR_ENVS.joinpath("scripts", "pyseq.yaml")
@@ -167,17 +88,17 @@ rule relabel_multi_annotation_table:
 
 rule concat_multi_annotation_labels:
     input:
-        bed_files = _MULTI_ANNOTATION_INPUT
+        bed_files = select_combination_input
     output:
         tmp_bed = temp(
             DIR_PROC.joinpath(
                 "20-combine", "annotate", "multiinter", "tmp",
-                "{sample}.{path_id}.concat-annot.bed"
+                "{sample}.{path_id}.cmb-{group_prefix}.concat-annot.bed"
             )
         ),
         bed = DIR_RES.joinpath(
             "annotations", "combined",
-            "{sample}.{path_id}.concat.bed.gz"
+            "{sample}.{path_id}.cmb-{group_prefix}.concat.bed.gz"
         )
     conda:
         DIR_ENVS.joinpath("biotools", "interval_tools.yaml")

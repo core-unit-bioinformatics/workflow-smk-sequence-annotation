@@ -22,3 +22,5 @@ if MINIMAP_LABELED_REFERENCES is not None:
     for label_name, label_data in MINIMAP_LABELED_REFERENCES.items():
         assert "sequence" in label_data
         assert "labels" in label_data
+
+COMBINE_LABELS_BY_GROUP = config.get("combine_labels_by_group", False)
