@@ -37,7 +37,7 @@ rule dump_annotation_label_listings:
             "{sample}.{path_id}.cmb-{group_prefix}.annot-labels.lst"
         ),
     params:
-        labels = lambda wildcards: " ".join(select_combination_labels(wildcards))
+        labels = lambda wildcards: select_combination_labels(wildcards)
     run:
         n_files = 0
         with open(output.lst_files, "w") as listing:
