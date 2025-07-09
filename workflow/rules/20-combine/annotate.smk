@@ -49,7 +49,7 @@ rule dump_annotation_label_listings:
             for label in params.labels:
                 _ = listing.write(f"{label}\n")
                 n_labels += 1
-        assert n_files == n_labels
+        assert n_files == n_labels, f"{input.bed_files} / {params.labels}"
     # END OF RUN BLOCK
 
 
