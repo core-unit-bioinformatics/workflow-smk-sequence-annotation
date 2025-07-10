@@ -54,6 +54,14 @@ rule dump_annotation_label_listings:
 
 
 rule relabel_multi_annotation_table:
+    """TODO fix the script being used here
+    The script used in this rule relies on building
+    interval data structures with pandas instead
+    of using pyranges directly, which leads to
+    a convoluted/buggy codebase. Hence, this rule is
+    not triggered in the current prototype of
+    this workflow.
+    """
     input:
         lst_files = rules.dump_annotation_label_listings.output.lst_files,
         lst_labels = rules.dump_annotation_label_listings.output.lst_labels,
@@ -121,17 +129,18 @@ rule run_all_combine_annotations:
             path_id=PATH_IDS,
             group_prefix=GROUP_PREFIX_WILDCARDS
         ),
-        combined = expand(
-            rules.relabel_multi_annotation_table.output.bed,
-            match_sample_path_id,
-            sample=SAMPLES,
-            path_id=PATH_IDS,
-            group_prefix=GROUP_PREFIX_WILDCARDS
-        ),
         concat = expand(
             rules.concat_multi_annotation_labels.output.bed,
             match_sample_path_id,
             sample=SAMPLES,
             path_id=PATH_IDS,
             group_prefix=GROUP_PREFIX_WILDCARDS
-        )
+        ),
+        # see comment above - buggy script, needs to be fixed first
+        # combined = expand(
+        #     rules.relabel_multi_annotation_table.output.bed,
+        #     match_sample_path_id,
+        #     sample=SAMPLES,
+        #     path_id=PATH_IDS,
+        #     group_prefix=GROUP_PREFIX_WILDCARDS
+        # ),
