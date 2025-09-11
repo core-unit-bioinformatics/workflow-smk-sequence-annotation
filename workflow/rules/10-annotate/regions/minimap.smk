@@ -163,8 +163,23 @@ rule normalize_paf_align_labeled_ref:
 
 
 rule trim_paf_align_labeled_ref:
+    """From rustybam's cli help:
+
+    >>>
+    This is a function for lifting over coordinates from a reference (<BED>) to a query using a PAF file
+    [...]
+    The returned file is a PAF file that is trimmed to the regions in the bed file.
+    Even the cigar in the returned PAF file is trimmed so it can be used downstream
+    <<<
+
+    So we use rustybam here to lift the regions annotated
+    in the reference (= the target in the PAF) over to the
+    query. The output is, however, not a lifted BED but the
+    trimmed PAF which still needs to be reduced to a
+    BED-like format.
+    """
     input:
-        norm_paf = rules.minimap_align_labeled_reference.output.paf,
+        paf = rules.minimap_align_labeled_reference.output.paf,
         labels = lambda wildcards: DIR_GLOBAL_REF.joinpath(
             MINIMAP_LABELED_REFERENCES[wildcards.labelref]["labels"]
         )
@@ -179,7 +194,7 @@ rule trim_paf_align_labeled_ref:
     resources:
         mem_mb=lambda wildcards, attempt: 4096 * attempt
     shell:
-        "rustybam liftover --bed {input.labels} {input.norm_paf} | gzip > {output.trimmed_paf}"
+        "rustybam liftover --bed {input.labels} {input.paf} | gzip > {output.trimmed_paf}"
 
 
 rule normalize_trimmed_paf_align_labeled_ref:
