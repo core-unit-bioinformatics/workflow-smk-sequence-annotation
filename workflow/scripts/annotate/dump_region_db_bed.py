@@ -33,6 +33,13 @@ alignment entries.
 
 This script does otherwise no filtering to avoid discarding "low-quality"
 mappings in highly repetitive regions.
+
+The (alignment) target information in the PAF file represents
+the sequences to be annotated.
+
+The (alignment) query information in the PAF file represents
+the region database, i.e. the set of meaningfully labeled
+(= the query name) sequences.
 """
 
 
@@ -67,7 +74,7 @@ def parse_command_line():
 def get_max_identity_block_size(cigar_string):
 
     max_block = 0
-    for block in re.finditer("[0-9]+\=", cigar_string):
+    for block in re.finditer("[0-9]+\\=", cigar_string):
         max_block = max(max_block, int(block.group(0)[:-1]))
 
     if max_block == 0:

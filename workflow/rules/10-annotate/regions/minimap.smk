@@ -61,6 +61,17 @@ rule normalize_paf_align_region_db:
 
 
 rule dump_region_db_bed:
+    """The script called in this rule makes use of PyRanges
+    to simply cluster/merge overlapping alignment intervals
+    with identical query name (= region from the region database)
+    and strand. Computed statistics give a rough idea
+    of the original alignment quality (pct. id. matches and so on)
+    but may not be accurate if the CIGAR string is not part of
+    the PAF file.
+
+    This script is fairly "dumb" in the sense that it largely
+    implements a format conversion w/ some descriptive statistics.
+    """
     input:
         norm_paf = rules.normalize_paf_align_region_db.output.tsv,
     output:
