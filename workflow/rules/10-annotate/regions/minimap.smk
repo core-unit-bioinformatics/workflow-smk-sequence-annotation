@@ -147,10 +147,10 @@ rule normalize_paf_align_labeled_ref:
     input:
         paf = rules.minimap_align_labeled_reference.output.paf,
     output:
-        tsv = DIR_PROC.joinpath(
-            "10-annotate", "labeled_ref", "minimap",
-            "{sample}.minimap.wd",
-            "{sample}.{path_id}.{labelref}.label-ref-aln.norm-paf.tsv.gz"
+        tsv = DIR_RES.joinpath(
+            "annotations", "regions", "minimap",
+            "{sample}",
+            "{sample}.{path_id}.{labelref}.mm2-label-ref-aln.norm-paf.tsv.gz"
         )
     conda:
         DIR_ENVS.joinpath("biotools", "align_tools.yaml")
@@ -201,10 +201,10 @@ rule normalize_trimmed_paf_align_labeled_ref:
     input:
         trimmed_paf = rules.trim_paf_align_labeled_ref.output.trimmed_paf,
     output:
-        tsv = DIR_PROC.joinpath(
-            "10-annotate", "labeled_ref", "minimap",
-            "{sample}.minimap.wd",
-            "{sample}.{path_id}.{labelref}.label-ref-aln.trimmed.norm-paf.tsv.gz"
+        tsv = DIR_RES.joinpath(
+            "annotations", "regions", "minimap",
+            "{sample}",
+            "{sample}.{path_id}.{labelref}.mm2-label-ref-aln.trimmed.norm-paf.tsv.gz"
         )
     conda:
         DIR_ENVS.joinpath("biotools", "align_tools.yaml")
