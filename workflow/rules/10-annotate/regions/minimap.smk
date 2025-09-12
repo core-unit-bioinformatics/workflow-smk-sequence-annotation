@@ -101,7 +101,14 @@ rule dump_region_db_bed:
 
 rule run_all_minimap_region_db:
     input:
-        tsv = expand(
+        paf = expand(
+            rules.normalize_paf_align_region_db.output.tsv,
+            match_sample_path_id,
+            sample=SAMPLES,
+            path_id=PATH_IDS,
+            region_db=MINIMAP_REGION_DB_NAMES
+        ),
+        bed = expand(
             rules.dump_region_db_bed.output.bed,
             match_sample_path_id,
             sample=SAMPLES,
@@ -250,7 +257,21 @@ rule dump_labeled_ref_bed:
 
 rule run_all_minimap_labeled_ref:
     input:
-        tsv = expand(
+        paf = expand(
+            rules.normalize_paf_align_labeled_ref.output.tsv,
+            match_sample_path_id,
+            sample=SAMPLES,
+            path_id=PATH_IDS,
+            labelref=MINIMAP_LABELED_REFERENCE_NAMES
+        ),
+        trim_paf = expand(
+            rules.normalize_trimmed_paf_align_labeled_ref.output.tsv,
+            match_sample_path_id,
+            sample=SAMPLES,
+            path_id=PATH_IDS,
+            labelref=MINIMAP_LABELED_REFERENCE_NAMES
+        ),
+        bed = expand(
             rules.dump_labeled_ref_bed.output.bed,
             match_sample_path_id,
             sample=SAMPLES,
