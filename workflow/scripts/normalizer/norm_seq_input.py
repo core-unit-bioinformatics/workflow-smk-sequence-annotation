@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 
 import argparse as argp
+import os
 import pathlib as pl
 import subprocess as sp
 
@@ -60,6 +61,7 @@ def determine_input_type(file_path):
         is_compressed = True
 
     # check for FASTA vs FASTQ
+    header_start = "empty"
     with xopen.xopen(file_path) as seqfile:
         for line in seqfile:
             if not line.strip():
@@ -77,7 +79,14 @@ def determine_input_type(file_path):
             f"header start char is: {header_start}"
         )
 
-    return seq_format, is_compressed
+    # if the file is not writable, we cannot
+    # create a hard link to it
+    is_writable = os.access(file_path, os.W_OK)
+
+    # this should be a must to resolve the path...?
+    assert os.access(file_path, os.R_OK)
+
+    return seq_format, is_compressed, is_writable
 
 
 def exec_sys_call(call):
@@ -118,17 +127,30 @@ def create_fasta_index(file_path):
     return
 
 
+def copy_file(input_file, output_file):
+
+    output_file.parent.mkdir(exist_ok=True, parents=True)
+    cmd = ["rsync", "--quiet", input_file, output_file]
+    exec_sys_call(cmd)
+    return
+
+
 def main():
 
     args = parse_command_line()
 
-    seq_format, is_compressed = determine_input_type(args.input_file)
+    seq_format, is_compressed, is_writable = determine_input_type(args.input_file)
 
     if args.no_name_check:
         if is_compressed or seq_format == "fastq":
             convert_file(args.input_file, args.output_file)
+        elif not is_writable:
+            # plain fasta w/o write perm
+            assert not is_compressed
+            assert seq_format == "fasta"
+            copy_file(args.input_file, args.output_file)
         else:
-            # plain fasta
+            # plain fasta w/ write perm
             assert not is_compressed
             assert seq_format == "fasta"
             link_file(args.input_file, args.output_file)
