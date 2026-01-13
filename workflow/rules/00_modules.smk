@@ -14,6 +14,7 @@ include: "00-settings/tools/repeatmasker.smk"
 include: "00-settings/tools/hmmer.smk"
 include: "00-settings/tools/minimap.smk"
 
+include: "05-prepare/seqsplit/split_input.smk"
 include: "05-prepare/deployment/repeatmasker.smk"
 include: "05-prepare/seqnorm/check_input.smk"
 

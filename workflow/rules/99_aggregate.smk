@@ -12,3 +12,9 @@ WORKFLOW_OUTPUT = []
 # (remember to include that module
 # in 00_modules.smk):
 # WORKFLOW_OUTPUT.extend(MODULE_OUTPUT)
+
+if SPLIT_INPUT_BY_SEQUENCE:
+    # is this option is set, only that one rule
+    # must be executed and the workflow restarted
+    # afterwards with the new sample sheet.
+    WORKFLOW_OUTPUT.append(rules.merge_all_split_sample_sheets.output.tsv)

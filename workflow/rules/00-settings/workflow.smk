@@ -40,3 +40,11 @@ SKIP_SEQUENCE_HEADER_NAME_CHECK = config.get("skip_sequence_header_name_check", 
 assert isinstance(SKIP_SEQUENCE_HEADER_NAME_CHECK, bool)
 
 
+# for large input files (typically, whole vertebrate genomes),
+# tools such as RepeatMasker may take a very long time to complete
+# depending on the actual sequence lengths to annotate. The user can
+# set this option to split the files by sequence and to generate
+# a new sample sheet that can be used to run the workflow on
+# the level of individual sequences.
+SPLIT_INPUT_BY_SEQUENCE = config.get("split_input_by_sequence", False)
+assert isinstance(SPLIT_INPUT_BY_SEQUENCE, bool)
