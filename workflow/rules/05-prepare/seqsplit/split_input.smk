@@ -21,7 +21,7 @@ rule split_input_by_sequence:
         mem_mb=lambda wildcards, attempt: 2048 * attempt,
         time_hrs=lambda wildcards, attempt: attempt
     params:
-        out_dir = lambda output: pl.Path(output.tsv).parent,
+        out_dir = lambda wildcards, output: pl.Path(output.tsv).parent,
         script = find_script("split_fasta.py")
     shell:
         "{params.script} --sample {wildcards.sample} "
