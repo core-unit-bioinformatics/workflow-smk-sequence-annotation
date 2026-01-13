@@ -62,10 +62,10 @@ def main():
 
             out_file = args.output.joinpath(
                 f"{split_output_name}.fasta"
-            )
+            ).resolve()
             with dnaio.FastaWriter(out_file) as dump:
                 dump.write(record.name, record.sequence)
-            sample_table.append((split_output_name, seqlength, out_file, args.input))
+            sample_table.append((split_output_name, seqlength, str(out_file), str(args.input)))
 
     sample_table_name = f"{sample_name}.splits.tsv"
     sample_table_file = args.output.joinpath(sample_table_name)
