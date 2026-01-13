@@ -30,6 +30,7 @@ rule split_input_by_sequence:
         "--input {input.fasta} --output {params.out_dir}"
 
 
+localrules: merge_all_split_sample_sheets
 rule merge_all_split_sample_sheets:
     input:
         tables = expand(
@@ -46,6 +47,7 @@ rule merge_all_split_sample_sheets:
         merge = []
         for tsv_file in input.tables:
             df = pd.read_csv(tsv_file, sep="\t", header=0)
+            merge.append(df)
         merge = pd.concat(merge, axis=0, ignore_index=False)
 
         merge.to_csv(output.tsv, sep="\t", header=True, index=False)
