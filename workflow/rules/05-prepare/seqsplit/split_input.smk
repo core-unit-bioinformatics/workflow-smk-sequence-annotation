@@ -22,7 +22,7 @@ rule split_input_by_sequence:
         time_hrs=lambda wildcards, attempt: attempt
     params:
         out_dir = lambda output: pl.Path(output.tsv).parent,
-        script = find_script("splitfa.py")
+        script = find_script("split_fasta.py")
     shell:
         "{params.script} --sample {wildcards.sample} "
         "--input {input.fasta} --output {params.out_dir}"
