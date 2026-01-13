@@ -101,32 +101,35 @@ rule compress_raw_repeatmasker_output:
         "tar -czf {output.targz} -C {params.change_dir} {wildcards.sample}.repeatmasker.wd/"
 
 
-rule run_all_repeatmasker_default:
-    """Why the shell call?
-    Failed RepeatMasker runs do not clean up after themselves
-    (presumably to keep debugging information intact) and
-    there is no switch to change that behavior. Hence,
-    this trigger rule also performs the cleanup operation.
-    Obviously, this can only be kicked off after all jobs
-    have completed (restarted until completion),
-    which makes RepeatMasker a typical candidate
-    for leaving behind garbage in case the pipeline is
-    interrupted in some way. Extremely annoying!!!
-    """
-    input:
-        tables = expand(
-            rules.normalize_repeatmasker_output_table.output.tsv,
-            match_sample_path_id,
-            sample=SAMPLES,
-            path_id=PATH_IDS
-        ),
-        tar = expand(
-            rules.compress_raw_repeatmasker_output.output.targz,
-            match_sample_path_id,
-            sample=SAMPLES,
-            path_id=PATH_IDS
-        )
-    shell:
-        "rm -rf RM_*"
+if RUN_REPEATMASKER:
 
+    # see comment in HMMER module
+
+    rule run_all_repeatmasker_default:
+        """Why the shell call?
+        Failed RepeatMasker runs do not clean up after themselves
+        (presumably to keep debugging information intact) and
+        there is no switch to change that behavior. Hence,
+        this trigger rule also performs the cleanup operation.
+        Obviously, this can only be kicked off after all jobs
+        have completed (restarted until completion),
+        which makes RepeatMasker a typical candidate
+        for leaving behind garbage in case the pipeline is
+        interrupted in some way. Extremely annoying!!!
+        """
+        input:
+            tables = expand(
+                rules.normalize_repeatmasker_output_table.output.tsv,
+                match_sample_path_id,
+                sample=SAMPLES,
+                path_id=PATH_IDS
+            ),
+            tar = expand(
+                rules.compress_raw_repeatmasker_output.output.targz,
+                match_sample_path_id,
+                sample=SAMPLES,
+                path_id=PATH_IDS
+            )
+        shell:
+            "rm -rf RM_*"
 
