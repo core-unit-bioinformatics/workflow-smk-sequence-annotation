@@ -139,33 +139,41 @@ rule compress_subset_hmmer_output:
         "tabix -p bed {output.bed}"
 
 
-rule run_all_hmmer_motif_searches:
-    input:
-        tables = expand(
-            rules.normalize_hmmer_output_table.output.tsv,
-            match_sample_path_id,
-            sample=SAMPLES,
-            path_id=PATH_IDS,
-            motif=HMMER_MOTIF_NAMES
-        ),
-        bedlike = expand(
-            rules.normalize_hmmer_output_table.output.bed,
-            match_sample_path_id,
-            sample=SAMPLES,
-            path_id=PATH_IDS,
-            motif=HMMER_MOTIF_NAMES
-        ),
-        raw_out = expand(
-            rules.compress_raw_hmmer_output.output.text,
-            match_sample_path_id,
-            sample=SAMPLES,
-            path_id=PATH_IDS,
-            motif=HMMER_MOTIF_NAMES
-        ),
-        hiq = expand(
-            rules.compress_subset_hmmer_output.output.bed,
-            match_sample_path_id,
-            sample=SAMPLES,
-            path_id=PATH_IDS,
-            motif=HMMER_MOTIF_NAMES
-        )
+if RUN_HMMER:
+
+    # TODO - without the if, Snakemake attempts to resolve
+    # the below wildcard replacements, which doesn't work
+    # unless HMMER is executed as part of the workflow
+    # --- to check/think about
+    # is the if here the best solution?
+
+    rule run_all_hmmer_motif_searches:
+        input:
+            tables = expand(
+                rules.normalize_hmmer_output_table.output.tsv,
+                match_sample_path_id,
+                sample=SAMPLES,
+                path_id=PATH_IDS,
+                motif=HMMER_MOTIF_NAMES
+            ),
+            bedlike = expand(
+                rules.normalize_hmmer_output_table.output.bed,
+                match_sample_path_id,
+                sample=SAMPLES,
+                path_id=PATH_IDS,
+                motif=HMMER_MOTIF_NAMES
+            ),
+            raw_out = expand(
+                rules.compress_raw_hmmer_output.output.text,
+                match_sample_path_id,
+                sample=SAMPLES,
+                path_id=PATH_IDS,
+                motif=HMMER_MOTIF_NAMES
+            ),
+            hiq = expand(
+                rules.compress_subset_hmmer_output.output.bed,
+                match_sample_path_id,
+                sample=SAMPLES,
+                path_id=PATH_IDS,
+                motif=HMMER_MOTIF_NAMES
+            )
