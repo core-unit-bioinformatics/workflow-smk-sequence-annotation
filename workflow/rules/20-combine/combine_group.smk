@@ -29,6 +29,8 @@ for name in itt.chain(MINIMAP_REGION_DB_NAMES, MINIMAP_LABELED_REFERENCE_NAMES):
 _ANNOTATION_LABEL_PREFIXES = sorted(_ANNOTATION_LABEL_PREFIXES)
 
 if COMBINE_LABELS_BY_GROUP:
+    # group [prefix] here will typically refer to
+    # something like a reference genome identifier
     GROUP_PREFIX_WILDCARDS = _ANNOTATION_LABEL_PREFIXES
 
 _MULTI_ANNOTATION_INPUT_GRP = collections.defaultdict(list)
